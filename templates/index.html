@@ -422,9 +422,9 @@
     const counts = { all: _allTasks.length, meetings: 0, safety: 0, status_report: 0 };
     for (const t of _allTasks) {
       const cat = getEmailCategory(t.description);
-      if (cat === 'safety')        counts.safety++;
+      if (cat === 'safety')             counts.safety++;
       else if (cat === 'status_report') counts.status_report++;
-      else counts.meetings++; // meeting emails + manually created tasks
+      else if (cat === 'meeting')       counts.meetings++;
     }
     for (const [key, n] of Object.entries(counts)) {
       const el = document.getElementById('cnt-' + key);
@@ -545,11 +545,7 @@
     if (_activeTab === 'all') {
       tasks = _allTasks;
     } else if (_activeTab === 'meetings') {
-      // meeting emails + all manually created tasks (no email tag)
-      tasks = _allTasks.filter(t => {
-        const cat = getEmailCategory(t.description);
-        return cat === 'meeting' || cat === null;
-      });
+      tasks = _allTasks.filter(t => getEmailCategory(t.description) === 'meeting');
     } else {
       tasks = _allTasks.filter(t => getEmailCategory(t.description) === _activeTab);
     }

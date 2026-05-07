@@ -14,12 +14,18 @@ MAX_SEEN = 2000  # cap so the file doesn't grow forever
 
 # ── Email categories ──────────────────────────────────────────────────────────
 
+NO_REPLY_PATTERNS = [
+    "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
+    "do_not_reply", "notifications@", "mailer-daemon", "automated@",
+]
+
 CATEGORIES = {
     "safety": {
         "keywords": [
-            "safety", "incident", "hazard", "accident", "emergency", "alert",
-            "warning", "risk", "fire drill", "injury", "evacuation", "unsafe",
-            "near miss", "near-miss", "ppe", "lockout", "tagout",
+            "safety", "segurança", "incident", "hazard", "accident",
+            "emergency", "alert", "warning", "risk", "fire drill",
+            "injury", "evacuation", "unsafe", "near miss", "near-miss",
+            "ppe", "lockout", "tagout",
         ],
         "emoji": "🔴",
         "priority": "high",
@@ -36,15 +42,19 @@ CATEGORIES = {
     },
     "meeting": {
         "keywords": [
-            "meeting", "invite", "invitation", "calendar", "agenda",
-            "zoom", "teams", "webex", "google meet", "huddle",
-            "standup", "stand-up", "sync", "conference", "workshop",
-            "call scheduled", "join the call", "has invited you",
+            "google meet", "meet.google.com", "join with google meet",
+            "microsoft teams", "teams.microsoft.com", "join microsoft teams",
+            "join a teams meeting", "teams meeting",
         ],
         "emoji": "📅",
         "priority": "medium",
     },
 }
+
+
+def _is_noreply(sender: str) -> bool:
+    s = sender.lower()
+    return any(p in s for p in NO_REPLY_PATTERNS)
 
 
 def _categorize(subject: str, sender: str) -> Optional[tuple]:
@@ -151,6 +161,11 @@ def sync_emails() -> dict:
             subject = _decode_header_str(msg.get("Subject", "(no subject)"))
             sender  = _decode_header_str(msg.get("From", ""))
             body    = _extract_body(msg)
+
+            if _is_noreply(sender):
+                if msg_id:
+                    seen.add(msg_id)
+                continue
 
             cat = _categorize(subject, sender)
             if cat is None:
