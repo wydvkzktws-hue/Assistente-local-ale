@@ -36,14 +36,15 @@ CATEGORIES = {
             "progress update", "status update", "project update", "summary",
             "dashboard", "kpi", "metrics", "weekly update", "daily update",
             "end of day", "eod report", "standup notes",
-            "diário de disponibilidade dos equipamentos varejo",
+            "diário de disponibilidade", "disponibilidade dos equipamentos",
         ],
+        "sender_domains": ["varejo2led.com.br"],
         "emoji": "📊",
         "priority": "low",
     },
     "payment": {
-        "keywords": ["infocount"],
-        "sender_domains": ["infocount"],
+        "keywords": [],
+        "sender_domains": ["infocount.com.br", "infocount.com"],
         "emoji": "💳",
         "priority": "high",
     },
@@ -140,9 +141,10 @@ def _extract_body(msg: email.message.Message, max_chars: int = 400) -> str:
 
 # ── Main sync ─────────────────────────────────────────────────────────────────
 
-def sync_emails() -> dict:
+def sync_emails(rescan: bool = False) -> dict:
     """
-    Connects to Gmail IMAP, fetches unseen emails, creates one task per email.
+    Fetches emails and creates tasks. rescan=True searches ALL mail (not just
+    UNSEEN) so already-read emails can be imported for the first time.
     Returns {'imported': int, 'error': str|None}.
     """
     cfg = load_config()
@@ -158,11 +160,13 @@ def sync_emails() -> dict:
         mail.login(cfg["email"], cfg["app_password"])
         mail.select("INBOX")
 
-        _, data = mail.search(None, "UNSEEN")
+        search_criterion = "ALL" if rescan else "UNSEEN"
+        _, data = mail.search(None, search_criterion)
         ids = data[0].split() if data[0] else []
 
-        # Process newest-first, cap at 50 per run
-        for eid in reversed(ids[-50:]):
+        # Process newest-first, cap at 200 for rescan, 50 for normal
+        cap = 200 if rescan else 50
+        for eid in reversed(ids[-cap:]):
             _, msg_data = mail.fetch(eid, "(RFC822)")
             raw_msg = msg_data[0][1]
             msg = email.message_from_bytes(raw_msg)

@@ -235,7 +235,17 @@ def api_email_config_save():
 
 @app.route("/api/email/sync", methods=["POST"])
 def api_email_sync():
-    _run_email_sync()
+    data = request.get_json(force=True) or {}
+    if data.get("rescan"):
+        global _last_email_sync
+        result = sync_emails(rescan=True)
+        result["at"] = datetime.now().isoformat(timespec="seconds")
+        _last_email_sync = result
+        if result["imported"] > 0:
+            n = result["imported"]
+            _push_to_clients({"type": "email_sync", "imported": n})
+    else:
+        _run_email_sync()
     return jsonify(_last_email_sync)
 
 
