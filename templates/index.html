@@ -204,6 +204,28 @@
     .sync-result.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
     .sync-result.hidden  { display: none; }
 
+    /* ── Tabs ── */
+    .tab-bar {
+      display: flex; gap: 0; margin-bottom: 1.25rem;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .tab-btn {
+      background: none; border: none; cursor: pointer;
+      padding: 0.6rem 1.1rem; font-size: 0.875rem; font-weight: 500;
+      color: #6b7280; border-bottom: 3px solid transparent;
+      margin-bottom: -2px; transition: color 0.12s, border-color 0.12s;
+      display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+    }
+    .tab-btn:hover { color: #374151; background: #f9fafb; border-radius: 6px 6px 0 0; }
+    .tab-btn.active { color: #7c3aed; border-bottom-color: #7c3aed; font-weight: 700; }
+    .tab-count {
+      background: #e5e7eb; color: #374151;
+      font-size: 0.68rem; font-weight: 700;
+      padding: 0.1rem 0.45rem; border-radius: 99px; min-width: 1.4rem;
+      text-align: center;
+    }
+    .tab-btn.active .tab-count { background: #ede9fe; color: #6d28d9; }
+
     /* ── Toast ── */
     #toast {
       position: fixed; bottom: 1.5rem; right: 1.5rem;
@@ -245,12 +267,13 @@
       <option value="medium">Medium</option>
       <option value="low">Low</option>
     </select>
-    <select id="filter-category" onchange="renderFilteredTasks()">
-      <option value="">All emails</option>
-      <option value="safety">🔴 Safety</option>
-      <option value="status_report">📊 Status reports</option>
-      <option value="meeting">📅 Meetings</option>
-    </select>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-all"           onclick="setTab('all')">All Tasks <span class="tab-count" id="cnt-all">0</span></button>
+    <button class="tab-btn"        id="tab-meetings"      onclick="setTab('meetings')">📅 Meetings <span class="tab-count" id="cnt-meetings">0</span></button>
+    <button class="tab-btn"        id="tab-safety"        onclick="setTab('safety')">🔴 Safety <span class="tab-count" id="cnt-safety">0</span></button>
+    <button class="tab-btn"        id="tab-status_report" onclick="setTab('status_report')">📊 Status Reports <span class="tab-count" id="cnt-status_report">0</span></button>
   </div>
 
   <div class="tasks-grid" id="tasks-grid">
@@ -369,6 +392,7 @@
 <script>
   let editingTaskId = null;
   let _allTasks = [];
+  let _activeTab = 'all';
 
   const EMAIL_CATEGORIES = {
     safety:        { label: 'Safety',        emoji: '🔴' },
@@ -385,6 +409,27 @@
   function stripCategoryTag(description) {
     if (!description) return description;
     return description.replace(/^\[email-category:\w+\]\n?/, '');
+  }
+
+  function setTab(tab) {
+    _activeTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    renderFilteredTasks();
+  }
+
+  function updateTabCounts() {
+    const counts = { all: _allTasks.length, meetings: 0, safety: 0, status_report: 0 };
+    for (const t of _allTasks) {
+      const cat = getEmailCategory(t.description);
+      if (cat === 'safety')        counts.safety++;
+      else if (cat === 'status_report') counts.status_report++;
+      else counts.meetings++; // meeting emails + manually created tasks
+    }
+    for (const [key, n] of Object.entries(counts)) {
+      const el = document.getElementById('cnt-' + key);
+      if (el) el.textContent = n;
+    }
   }
 
   // ── Toast ───────────────────────────────────────────────────────────────────
@@ -474,6 +519,7 @@
     try {
       const tasks = await api('/api/tasks?' + params);
       _allTasks = tasks;
+      updateTabCounts();
       renderFilteredTasks();
     } catch (_) {
       document.getElementById('tasks-grid').innerHTML =
@@ -495,10 +541,17 @@
   }
 
   function renderFilteredTasks() {
-    const catFilter = document.getElementById('filter-category').value;
-    let tasks = _allTasks;
-    if (catFilter) {
-      tasks = tasks.filter(t => getEmailCategory(t.description) === catFilter);
+    let tasks;
+    if (_activeTab === 'all') {
+      tasks = _allTasks;
+    } else if (_activeTab === 'meetings') {
+      // meeting emails + all manually created tasks (no email tag)
+      tasks = _allTasks.filter(t => {
+        const cat = getEmailCategory(t.description);
+        return cat === 'meeting' || cat === null;
+      });
+    } else {
+      tasks = _allTasks.filter(t => getEmailCategory(t.description) === _activeTab);
     }
     renderTasks(tasks);
   }
