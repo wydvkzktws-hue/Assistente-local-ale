@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Assistant</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f0f2f5;
+      color: #1e1e2e;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    #stream-status { font-size: 0.78rem; opacity: 0.65; }
+
+    .container { max-width: 860px; margin: 2rem auto; padding: 0 1.25rem; }
+
+    .notif-banner {
+      background: #fffbeb; border: 1px solid #fbbf24; border-radius: 10px;
+      padding: 0.75rem 1.1rem; margin-bottom: 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.875rem; gap: 1rem;
+    }
+    .notif-banner.hidden { display: none; }
+
+    .toolbar {
+      display: flex; gap: 0.6rem; margin-bottom: 1.25rem;
+      align-items: center; flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem; border: none; border-radius: 7px;
+      cursor: pointer; font-size: 0.875rem; font-weight: 500;
+      transition: filter 0.12s, transform 0.08s; white-space: nowrap;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary  { background: #7c3aed; color: #fff; }
+    .btn-checkin  { background: #0ea5e9; color: #fff; }
+    .btn-success  { background: #16a34a; color: #fff; }
+    .btn-warning  { background: #d97706; color: #fff; }
+    .btn-danger   { background: #dc2626; color: #fff; }
+    .btn-ghost    { background: #e4e4e7; color: #333; }
+    .btn-sm       { padding: 0.28rem 0.65rem; font-size: 0.78rem; border-radius: 5px; }
+
+    select, input, textarea {
+      padding: 0.45rem 0.75rem; border: 1px solid #d1d5db;
+      border-radius: 7px; font-size: 0.875rem; background: #fff;
+      outline: none; transition: border-color 0.15s;
+    }
+    select:focus, input:focus, textarea:focus { border-color: #7c3aed; }
+
+    .tasks-grid { display: flex; flex-direction: column; gap: 0.7rem; }
+
+    .task-card {
+      background: #fff; border-radius: 10px;
+      padding: 1rem 1.25rem; border-left: 5px solid #e5e7eb;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      display: flex; align-items: flex-start; gap: 1rem;
+      transition: box-shadow 0.15s;
+    }
+    .task-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.11); }
+    .task-card.high   { border-left-color: #dc2626; }
+    .task-card.medium { border-left-color: #d97706; }
+    .task-card.low    { border-left-color: #16a34a; }
+    .task-card.done   { opacity: 0.55; }
+
+    .task-info { flex: 1; min-width: 0; }
+    .task-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem; }
+    .task-title.strikethrough { text-decoration: line-through; color: #9ca3af; }
+    .task-meta {
+      font-size: 0.79rem; color: #6b7280;
+      display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 0.15rem 0.55rem; border-radius: 99px;
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    }
+    .badge-high    { background: #fee2e2; color: #b91c1c; }
+    .badge-medium  { background: #fef3c7; color: #b45309; }
+    .badge-low     { background: #d1fae5; color: #15803d; }
+    .badge-pending { background: #ede9fe; color: #6d28d9; }
+    .badge-done    { background: #f3f4f6; color: #6b7280; }
+    .badge-snoozed { background: #fff7ed; color: #c2410c; }
+
+    .task-actions {
+      display: flex; gap: 0.35rem; align-items: flex-start;
+      flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end;
+    }
+
+    .empty-state { text-align: center; padding: 4rem 1rem; color: #9ca3af; }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 0.75rem; }
+    .empty-state p { font-size: 0.95rem; }
+
+    /* ── Modals ── */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55); z-index: 200;
+      align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: #fff; border-radius: 14px;
+      padding: 1.5rem; width: 100%; max-width: 480px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+      animation: slideUp 0.18s ease;
+      max-height: 90vh; overflow-y: auto;
+    }
+    /* Wider modal for check-in */
+    .modal.wide { max-width: 600px; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .modal h2 { margin-bottom: 1.25rem; font-size: 1.1rem; font-weight: 700; }
+    .modal h3 { font-size: 0.9rem; font-weight: 700; color: #374151; margin-bottom: 0.75rem; }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: 0.83rem; font-weight: 600; margin-bottom: 0.35rem; color: #374151; }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; }
+    .form-group textarea { resize: vertical; min-height: 72px; font-family: inherit; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }
+
+    /* ── Check-in modal specifics ── */
+    .checkin-section {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .checkin-section:last-child { border-bottom: none; margin-bottom: 0; }
+
+    .overdue-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.65rem 0.85rem; border-radius: 8px;
+      background: #fef2f2; border: 1px solid #fecaca;
+      margin-bottom: 0.5rem;
+    }
+    .overdue-item .overdue-title { flex: 1; font-size: 0.875rem; font-weight: 500; }
+    .overdue-item .overdue-meta { font-size: 0.75rem; color: #9ca3af; }
+    .overdue-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: #16a34a; cursor: pointer; flex-shrink: 0; }
+
+    .today-task-row {
+      display: flex; gap: 0.5rem; align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .today-task-row input[type="text"] { flex: 1; }
+    .today-task-row select { width: 100px; flex-shrink: 0; }
+    .today-task-row .remove-row { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 1.1rem; padding: 0 4px; }
+
+    .add-row-btn {
+      background: none; border: 1px dashed #d1d5db; border-radius: 7px;
+      width: 100%; padding: 0.45rem; font-size: 0.83rem; color: #6b7280;
+      cursor: pointer; transition: background 0.12s;
+    }
+    .add-row-btn:hover { background: #f9fafb; color: #374151; }
+
+    /* ── Email status pill ── */
+    #email-pill {
+      font-size: 0.78rem; padding: 0.3rem 0.75rem;
+      border-radius: 99px; border: 1px solid #e5e7eb;
+      background: #f9fafb; cursor: pointer;
+      transition: background 0.12s; white-space: nowrap;
+    }
+    #email-pill:hover { background: #f3f4f6; }
+    #email-pill.ok    { border-color: #86efac; background: #f0fdf4; color: #15803d; }
+    #email-pill.error { border-color: #fca5a5; background: #fef2f2; color: #b91c1c; }
+
+    /* ── Email modal specifics ── */
+    .email-step { font-size: 0.82rem; color: #6b7280; margin-bottom: 1rem; line-height: 1.6; }
+    .email-step a { color: #7c3aed; }
+    .email-step code {
+      background: #f3f4f6; padding: 0.1rem 0.4rem;
+      border-radius: 4px; font-size: 0.8rem;
+    }
+    .sync-result {
+      margin-top: 0.75rem; padding: 0.65rem 0.9rem;
+      border-radius: 8px; font-size: 0.85rem;
+    }
+    .sync-result.success { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+    .sync-result.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .sync-result.hidden  { display: none; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: #1e1e2e; color: #cdd6f4;
+      padding: 0.65rem 1.1rem; border-radius: 8px;
+      font-size: 0.875rem; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 300;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📋 Personal Assistant</h1>
+  <span id="stream-status">Connecting...</span>
+</header>
+
+<div class="container">
+
+  <div class="notif-banner hidden" id="notif-banner">
+    <span>Enable desktop notifications to receive task reminders.</span>
+    <button class="btn btn-primary btn-sm" onclick="requestNotifPermission()">Enable notifications</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-primary" onclick="openAddModal()">+ New Task</button>
+    <button class="btn btn-checkin" onclick="openCheckinManual()">🌅 Daily Check-in</button>
+    <span id="email-pill" onclick="openEmailModal()" title="Email sync settings">📧 Email sync</span>
+    <select id="filter-status" onchange="loadTasks()">
+      <option value="">All tasks</option>
+      <option value="pending">Pending</option>
+      <option value="done">Done</option>
+      <option value="overdue">Overdue</option>
+    </select>
+    <select id="filter-priority" onchange="loadTasks()">
+      <option value="">Any priority</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+  </div>
+
+  <div class="tasks-grid" id="tasks-grid">
+    <div class="empty-state"><div class="icon">⏳</div><p>Loading tasks…</p></div>
+  </div>
+</div>
+
+<!-- ── Add / Edit Task Modal ── -->
+<div class="modal-backdrop" id="task-modal">
+  <div class="modal">
+    <h2 id="modal-title">New Task</h2>
+    <div class="form-group">
+      <label>Title *</label>
+      <input type="text" id="f-title" placeholder="What needs to be done?">
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="f-description" placeholder="Optional notes…"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Due date &amp; time</label>
+      <input type="datetime-local" id="f-due">
+    </div>
+    <div class="form-group">
+      <label>Priority</label>
+      <select id="f-priority">
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Recurrence</label>
+      <select id="f-recurrence">
+        <option value="">None</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('task-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Daily Check-in Modal ── -->
+<div class="modal-backdrop" id="checkin-modal">
+  <div class="modal wide">
+    <h2 id="checkin-heading">🌅 Daily Check-in</h2>
+
+    <!-- Yesterday's unfinished tasks -->
+    <div class="checkin-section" id="overdue-section" style="display:none">
+      <h3>⚠️ Unfinished tasks from before — did you complete any?</h3>
+      <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:0.75rem">
+        Check the ones you finished. Unchecked tasks stay open.
+      </p>
+      <div id="overdue-list"></div>
+    </div>
+
+    <!-- Today's tasks -->
+    <div class="checkin-section">
+      <h3>📝 What do you need to do today?</h3>
+      <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:0.75rem">
+        Add as many tasks as you like. They'll be created with today as the due date.
+      </p>
+      <div id="today-rows"></div>
+      <button class="add-row-btn" onclick="addTodayRow()">+ Add another task</button>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('checkin-modal')">Skip</button>
+      <button class="btn btn-checkin" onclick="submitCheckin()">Finish Check-in</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Email Setup Modal ── -->
+<div class="modal-backdrop" id="email-modal">
+  <div class="modal">
+    <h2>📧 Email Sync Setup</h2>
+
+    <div class="email-step">
+      Auto-imports unread Gmail as tasks every 5 minutes.<br>
+      Requires a <strong>Google App Password</strong> (not your regular password):<br>
+      1. Go to <strong>Google Account → Security → 2-Step Verification → App passwords</strong><br>
+      2. Create one for <code>Mail</code> — you'll get a 16-character password.<br>
+      3. Paste it below. Credentials are stored locally in <code>~/.assistant/</code>.
+    </div>
+
+    <div class="form-group">
+      <label>Work email address</label>
+      <input type="email" id="em-email" placeholder="you@company.com">
+    </div>
+    <div class="form-group">
+      <label>App Password <span style="font-weight:400;color:#9ca3af">(16 chars, no spaces)</span></label>
+      <input type="password" id="em-password" placeholder="xxxx xxxx xxxx xxxx">
+    </div>
+    <div class="form-group">
+      <label>IMAP host <span style="font-weight:400;color:#9ca3af">(leave default for Gmail)</span></label>
+      <input type="text" id="em-host" value="imap.gmail.com">
+    </div>
+
+    <div class="sync-result hidden" id="em-result"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('email-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEmailConfig()" id="em-save-btn">Connect &amp; Test</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let editingTaskId = null;
+
+  // ── Toast ───────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
+  // ── Notifications ───────────────────────────────────────────────────────────
+  function checkNotifPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      document.getElementById('notif-banner').classList.remove('hidden');
+    }
+  }
+
+  function requestNotifPermission() {
+    Notification.requestPermission().then(p => {
+      if (p === 'granted') {
+        document.getElementById('notif-banner').classList.add('hidden');
+        toast('Desktop notifications enabled!');
+      }
+    });
+  }
+
+  function showDesktopNotif(title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const n = new Notification(title, { body });
+    n.onclick = () => { window.focus(); n.close(); };
+  }
+
+  // ── SSE stream ──────────────────────────────────────────────────────────────
+  function connectStream() {
+    const statusEl = document.getElementById('stream-status');
+    const es = new EventSource('/stream');
+
+    es.onopen = () => { statusEl.textContent = '🟢 Live'; };
+    es.onmessage = e => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.type === 'reminder' && data.id) {
+          showDesktopNotif(data.title, data.body);
+          toast(`⏰ Reminder: ${data.title}`);
+          loadTasks();
+        } else if (data.type === 'daily_checkin') {
+          openCheckin(data.overdue_tasks || []);
+          showDesktopNotif('Daily Check-in', 'Time to plan your day!');
+        } else if (data.type === 'email_sync') {
+          const n = data.imported;
+          toast(`📧 ${n} new email task${n > 1 ? 's' : ''} imported.`);
+          showDesktopNotif('New email tasks', `${n} unread email${n > 1 ? 's' : ''} added as task${n > 1 ? 's' : ''}.`);
+          loadTasks();
+          updateEmailPill();
+        }
+      } catch (_) {}
+    };
+    es.onerror = () => {
+      statusEl.textContent = '🔴 Reconnecting…';
+      es.close();
+      setTimeout(connectStream, 5000);
+    };
+  }
+
+  // ── API helpers ─────────────────────────────────────────────────────────────
+  async function api(url, opts = {}) {
+    const r = await fetch(url, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+
+  // ── Task list ───────────────────────────────────────────────────────────────
+  async function loadTasks() {
+    const params = new URLSearchParams();
+    const s = document.getElementById('filter-status').value;
+    const p = document.getElementById('filter-priority').value;
+    if (s) params.set('filter', s);
+    if (p) params.set('priority', p);
+    try {
+      const tasks = await api('/api/tasks?' + params);
+      renderTasks(tasks);
+    } catch (_) {
+      document.getElementById('tasks-grid').innerHTML =
+        '<div class="empty-state"><div class="icon">⚠️</div><p>Could not load tasks.</p></div>';
+    }
+  }
+
+  function formatDue(due_at) {
+    if (!due_at) return 'No due date';
+    const d = new Date(due_at.replace(' ', 'T'));
+    const now = new Date();
+    const opts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    if (d < now) return `⚠️ Overdue (${d.toLocaleString('en-US', opts)})`;
+    return d.toLocaleString('en-US', opts);
+  }
+
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderTasks(tasks) {
+    const grid = document.getElementById('tasks-grid');
+    if (!tasks.length) {
+      grid.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>No tasks here.</p></div>';
+      return;
+    }
+    grid.innerHTML = tasks.map(t => `
+      <div class="task-card ${esc(t.priority)} ${t.status === 'done' ? 'done' : ''}">
+        <div class="task-info">
+          <div class="task-title ${t.status === 'done' ? 'strikethrough' : ''}">${esc(t.title)}</div>
+          <div class="task-meta">
+            <span class="badge badge-${esc(t.priority)}">${esc(t.priority)}</span>
+            <span class="badge badge-${esc(t.status)}">${esc(t.status)}</span>
+            <span>📅 ${formatDue(t.due_at)}</span>
+            ${t.recurrence ? `<span>🔁 ${esc(t.recurrence)}</span>` : ''}
+            ${t.description ? `<span title="${esc(t.description)}">📝 ${esc(t.description.slice(0,50))}${t.description.length > 50 ? '…' : ''}</span>` : ''}
+          </div>
+        </div>
+        <div class="task-actions">
+          ${t.status !== 'done' ? `
+            <button class="btn btn-success btn-sm" onclick="doneTask(${t.id})">Done</button>
+            <button class="btn btn-warning btn-sm" onclick="snoozeTask(${t.id})">Snooze</button>
+          ` : ''}
+          <button class="btn btn-ghost btn-sm" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})'>Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="removeTask(${t.id})">Del</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // ── Task actions ────────────────────────────────────────────────────────────
+  async function doneTask(id) {
+    await api(`/api/tasks/${id}/done`, { method: 'POST', body: '{}' });
+    toast('Task completed!');
+    loadTasks();
+  }
+
+  async function snoozeTask(id) {
+    const minutes = prompt('Snooze for how many minutes?', '30');
+    if (!minutes || isNaN(+minutes)) return;
+    await api(`/api/tasks/${id}/snooze`, { method: 'POST', body: JSON.stringify({ minutes: +minutes }) });
+    toast(`Snoozed for ${minutes} minutes.`);
+    loadTasks();
+  }
+
+  async function removeTask(id) {
+    if (!confirm('Delete this task?')) return;
+    await api(`/api/tasks/${id}`, { method: 'DELETE' });
+    toast('Task deleted.');
+    loadTasks();
+  }
+
+  // ── Add/Edit modal ──────────────────────────────────────────────────────────
+  function clearForm() {
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-description').value = '';
+    document.getElementById('f-due').value = '';
+    document.getElementById('f-priority').value = 'medium';
+    document.getElementById('f-recurrence').value = '';
+  }
+
+  function openAddModal() {
+    editingTaskId = null;
+    document.getElementById('modal-title').textContent = 'New Task';
+    clearForm();
+    document.getElementById('task-modal').classList.add('open');
+    setTimeout(() => document.getElementById('f-title').focus(), 50);
+  }
+
+  function openEditModal(id, task) {
+    editingTaskId = id;
+    document.getElementById('modal-title').textContent = 'Edit Task';
+    document.getElementById('f-title').value = task.title ?? '';
+    document.getElementById('f-description').value = task.description ?? '';
+    document.getElementById('f-priority').value = task.priority ?? 'medium';
+    document.getElementById('f-recurrence').value = task.recurrence ?? '';
+    if (task.due_at) {
+      const d = new Date(task.due_at.replace(' ', 'T'));
+      document.getElementById('f-due').value =
+        new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    } else {
+      document.getElementById('f-due').value = '';
+    }
+    document.getElementById('task-modal').classList.add('open');
+  }
+
+  async function saveTask() {
+    const title = document.getElementById('f-title').value.trim();
+    if (!title) { alert('Title is required.'); return; }
+    const dueRaw = document.getElementById('f-due').value;
+    const due_at = dueRaw ? new Date(dueRaw).toISOString().replace('T', ' ').slice(0, 19) : null;
+    const payload = {
+      title,
+      description: document.getElementById('f-description').value.trim() || null,
+      due_at,
+      priority: document.getElementById('f-priority').value,
+      recurrence: document.getElementById('f-recurrence').value || null,
+    };
+    if (editingTaskId) {
+      await api(`/api/tasks/${editingTaskId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      toast('Task updated!');
+    } else {
+      await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
+      toast('Task added!');
+    }
+    closeModal('task-modal');
+    loadTasks();
+  }
+
+  // ── Check-in modal ──────────────────────────────────────────────────────────
+  async function openCheckinManual() {
+    const overdue = await api('/api/checkin');
+    openCheckin(overdue);
+  }
+
+  function openCheckin(overdueTasks) {
+    // Date label
+    const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+    document.getElementById('checkin-heading').textContent = `🌅 Daily Check-in — ${today}`;
+
+    // Overdue section
+    const sec = document.getElementById('overdue-section');
+    const list = document.getElementById('overdue-list');
+    if (overdueTasks.length > 0) {
+      sec.style.display = '';
+      list.innerHTML = overdueTasks.map(t => {
+        const dueStr = t.due_at
+          ? new Date(t.due_at.replace(' ','T')).toLocaleDateString('en-US', { month:'short', day:'numeric' })
+          : '';
+        return `
+          <div class="overdue-item">
+            <input type="checkbox" id="ov-${t.id}" data-id="${t.id}">
+            <div>
+              <div class="overdue-title">${esc(t.title)}</div>
+              ${dueStr ? `<div class="overdue-meta">Was due: ${dueStr}</div>` : ''}
+            </div>
+            <span class="badge badge-${esc(t.priority)}" style="margin-left:auto">${esc(t.priority)}</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      sec.style.display = 'none';
+    }
+
+    // Today's task rows — start with one empty row
+    document.getElementById('today-rows').innerHTML = '';
+    addTodayRow();
+
+    document.getElementById('checkin-modal').classList.add('open');
+    setTimeout(() => {
+      const first = document.querySelector('.today-task-row input[type="text"]');
+      if (first) first.focus();
+    }, 80);
+  }
+
+  let rowCounter = 0;
+  function addTodayRow() {
+    rowCounter++;
+    const id = `tr-${rowCounter}`;
+    const row = document.createElement('div');
+    row.className = 'today-task-row';
+    row.id = id;
+    row.innerHTML = `
+      <input type="text" placeholder="Task title…" onkeydown="rowKeydown(event, '${id}')">
+      <select>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+        <option value="low">Low</option>
+      </select>
+      <button class="remove-row" onclick="removeRow('${id}')" title="Remove">×</button>
+    `;
+    document.getElementById('today-rows').appendChild(row);
+  }
+
+  function removeRow(id) {
+    const rows = document.getElementById('today-rows');
+    if (rows.children.length <= 1) {
+      // clear instead of remove so there's always one row
+      const inp = rows.querySelector('input[type="text"]');
+      if (inp) inp.value = '';
+      return;
+    }
+    document.getElementById(id)?.remove();
+  }
+
+  function rowKeydown(e, id) {
+    if (e.key === 'Enter') { e.preventDefault(); addTodayRow(); }
+  }
+
+  async function submitCheckin() {
+    // Mark checked overdue tasks as done
+    const checked = document.querySelectorAll('#overdue-list input[type="checkbox"]:checked');
+    for (const cb of checked) {
+      await api(`/api/tasks/${cb.dataset.id}/done`, { method: 'POST', body: '{}' });
+    }
+
+    // Create today's tasks
+    const todayEnd = (() => {
+      const d = new Date();
+      d.setHours(23, 59, 0, 0);
+      return d.toISOString().replace('T', ' ').slice(0, 19);
+    })();
+
+    const rows = document.querySelectorAll('.today-task-row');
+    let added = 0;
+    for (const row of rows) {
+      const title = row.querySelector('input[type="text"]').value.trim();
+      const priority = row.querySelector('select').value;
+      if (!title) continue;
+      await api('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify({ title, priority, due_at: todayEnd }),
+      });
+      added++;
+    }
+
+    closeModal('checkin-modal');
+    loadTasks();
+
+    if (added > 0) {
+      toast(`Check-in done! Added ${added} task${added > 1 ? 's' : ''} for today.`);
+    } else {
+      toast('Check-in done!');
+    }
+  }
+
+  // ── Modal helpers ───────────────────────────────────────────────────────────
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  document.getElementById('task-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal('task-modal');
+  });
+  document.getElementById('checkin-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal('checkin-modal');
+  });
+
+  document.getElementById('f-title').addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveTask();
+  });
+
+  // ── Email modal ─────────────────────────────────────────────────────────────
+  async function openEmailModal() {
+    // Pre-fill saved config (password excluded)
+    const cfg = await api('/api/email/config');
+    if (cfg.configured) {
+      document.getElementById('em-email').value = cfg.email || '';
+      document.getElementById('em-host').value = cfg.imap_host || 'imap.gmail.com';
+      document.getElementById('em-password').value = '';
+    }
+    document.getElementById('em-result').className = 'sync-result hidden';
+    document.getElementById('email-modal').classList.add('open');
+  }
+
+  async function saveEmailConfig() {
+    const email_addr = document.getElementById('em-email').value.trim();
+    const app_password = document.getElementById('em-password').value.trim();
+    const imap_host = document.getElementById('em-host').value.trim();
+
+    if (!email_addr || !app_password) {
+      alert('Email and App Password are required.');
+      return;
+    }
+
+    const btn = document.getElementById('em-save-btn');
+    btn.textContent = 'Testing…';
+    btn.disabled = true;
+
+    const resultEl = document.getElementById('em-result');
+    try {
+      const res = await api('/api/email/config', {
+        method: 'POST',
+        body: JSON.stringify({ email: email_addr, app_password, imap_host }),
+      });
+      if (res.ok) {
+        resultEl.className = 'sync-result success';
+        resultEl.textContent = `✅ Connected! ${res.unread} unread email${res.unread !== 1 ? 's' : ''} in inbox. Sync runs every 5 minutes.`;
+        updateEmailPill();
+        // Kick off first sync immediately
+        api('/api/email/sync', { method: 'POST', body: '{}' }).then(() => {
+          loadTasks();
+          updateEmailPill();
+        });
+      } else {
+        resultEl.className = 'sync-result error';
+        resultEl.textContent = `❌ ${res.error}`;
+      }
+    } catch (e) {
+      resultEl.className = 'sync-result error';
+      resultEl.textContent = `❌ ${e.message}`;
+    } finally {
+      btn.textContent = 'Connect & Test';
+      btn.disabled = false;
+    }
+  }
+
+  async function updateEmailPill() {
+    try {
+      const st = await api('/api/email/status');
+      const pill = document.getElementById('email-pill');
+      if (!st.configured) {
+        pill.className = '';
+        pill.textContent = '📧 Email sync';
+        return;
+      }
+      if (st.error && st.error !== 'not_configured') {
+        pill.className = 'error';
+        pill.textContent = '📧 Sync error';
+        pill.title = st.error;
+        return;
+      }
+      if (st.at) {
+        const ago = Math.round((Date.now() - new Date(st.at)) / 60000);
+        pill.className = 'ok';
+        pill.textContent = `📧 Synced ${ago < 2 ? 'just now' : ago + 'm ago'}`;
+      } else {
+        pill.className = 'ok';
+        pill.textContent = '📧 Email connected';
+      }
+    } catch (_) {}
+  }
+
+  document.getElementById('email-modal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal('email-modal');
+  });
+
+  // ── Init ────────────────────────────────────────────────────────────────────
+  checkNotifPermission();
+  connectStream();
+  loadTasks();
+  updateEmailPill();
+  setInterval(loadTasks, 60000);
+  setInterval(updateEmailPill, 60000);
+</script>
+</body>
+</html>

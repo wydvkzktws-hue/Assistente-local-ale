@@ -1,0 +1,3 @@
+flask
+schedule
+plyer; sys_platform == "win32"

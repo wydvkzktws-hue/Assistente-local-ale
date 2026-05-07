@@ -1,0 +1,151 @@
+import email
+import imaplib
+import json
+import os
+from email.header import decode_header
+from typing import Optional
+
+from db import create_task
+
+DATA_DIR = os.path.expanduser("~/.assistant")
+CONFIG_PATH = os.path.join(DATA_DIR, "email_config.json")
+SEEN_IDS_PATH = os.path.join(DATA_DIR, "seen_email_ids.json")
+MAX_SEEN = 2000  # cap so the file doesn't grow forever
+
+
+# ── Config ────────────────────────────────────────────────────────────────────
+
+def load_config() -> Optional[dict]:
+    try:
+        with open(CONFIG_PATH) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def save_config(cfg: dict) -> None:
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(cfg, f)
+
+
+# ── Seen-ID tracking ──────────────────────────────────────────────────────────
+
+def _load_seen() -> set:
+    try:
+        with open(SEEN_IDS_PATH) as f:
+            return set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+
+def _save_seen(ids: set) -> None:
+    # Keep only the most recent MAX_SEEN entries
+    items = list(ids)[-MAX_SEEN:]
+    with open(SEEN_IDS_PATH, "w") as f:
+        json.dump(items, f)
+
+
+# ── Email parsing helpers ─────────────────────────────────────────────────────
+
+def _decode_header_str(raw: str) -> str:
+    parts = decode_header(raw or "")
+    out = []
+    for chunk, enc in parts:
+        if isinstance(chunk, bytes):
+            out.append(chunk.decode(enc or "utf-8", errors="replace"))
+        else:
+            out.append(str(chunk))
+    return "".join(out)
+
+
+def _extract_body(msg: email.message.Message, max_chars: int = 400) -> str:
+    if msg.is_multipart():
+        for part in msg.walk():
+            if part.get_content_type() == "text/plain" and not part.get("Content-Disposition"):
+                raw = part.get_payload(decode=True)
+                if raw:
+                    return raw.decode("utf-8", errors="replace").strip()[:max_chars]
+    else:
+        raw = msg.get_payload(decode=True)
+        if raw:
+            return raw.decode("utf-8", errors="replace").strip()[:max_chars]
+    return ""
+
+
+# ── Main sync ─────────────────────────────────────────────────────────────────
+
+def sync_emails() -> dict:
+    """
+    Connects to Gmail IMAP, fetches unseen emails, creates one task per email.
+    Returns {'imported': int, 'error': str|None}.
+    """
+    cfg = load_config()
+    if not cfg:
+        return {"imported": 0, "error": "not_configured"}
+
+    seen = _load_seen()
+    imported = 0
+
+    try:
+        host = cfg.get("imap_host", "imap.gmail.com")
+        mail = imaplib.IMAP4_SSL(host, 993)
+        mail.login(cfg["email"], cfg["app_password"])
+        mail.select("INBOX")
+
+        _, data = mail.search(None, "UNSEEN")
+        ids = data[0].split() if data[0] else []
+
+        # Process newest-first, cap at 50 per run
+        for eid in reversed(ids[-50:]):
+            _, msg_data = mail.fetch(eid, "(RFC822)")
+            raw_msg = msg_data[0][1]
+            msg = email.message_from_bytes(raw_msg)
+
+            msg_id = (msg.get("Message-ID") or "").strip()
+            if msg_id and msg_id in seen:
+                continue
+
+            subject = _decode_header_str(msg.get("Subject", "(no subject)"))
+            sender  = _decode_header_str(msg.get("From", ""))
+            body    = _extract_body(msg)
+
+            title = f"📧 {subject[:80]}"
+            desc_lines = [f"From: {sender}"]
+            if body:
+                desc_lines.append("")
+                desc_lines.append(body)
+
+            create_task(
+                title=title,
+                description="\n".join(desc_lines),
+                priority="medium",
+            )
+            imported += 1
+
+            if msg_id:
+                seen.add(msg_id)
+
+        mail.logout()
+        _save_seen(seen)
+        return {"imported": imported, "error": None}
+
+    except imaplib.IMAP4.error as exc:
+        return {"imported": 0, "error": f"IMAP auth error: {exc}"}
+    except Exception as exc:
+        return {"imported": 0, "error": str(exc)}
+
+
+def test_connection(email_addr: str, app_password: str, imap_host: str = "imap.gmail.com") -> dict:
+    """Quick connectivity check without importing anything."""
+    try:
+        mail = imaplib.IMAP4_SSL(imap_host, 993)
+        mail.login(email_addr, app_password)
+        mail.select("INBOX")
+        _, data = mail.search(None, "UNSEEN")
+        unread = len(data[0].split()) if data[0] else 0
+        mail.logout()
+        return {"ok": True, "unread": unread}
+    except imaplib.IMAP4.error as exc:
+        return {"ok": False, "error": f"IMAP auth error — check your App Password. ({exc})"}
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
