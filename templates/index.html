@@ -104,6 +104,7 @@
     .badge-safety        { background: #fee2e2; color: #b91c1c; }
     .badge-status_report { background: #e0f2fe; color: #0369a1; }
     .badge-meeting       { background: #fef9c3; color: #92400e; }
+    .badge-payment       { background: #f0fdf4; color: #15803d; }
 
     .task-actions {
       display: flex; gap: 0.35rem; align-items: flex-start;
@@ -274,6 +275,7 @@
     <button class="tab-btn"        id="tab-meetings"      onclick="setTab('meetings')">📅 Meetings <span class="tab-count" id="cnt-meetings">0</span></button>
     <button class="tab-btn"        id="tab-safety"        onclick="setTab('safety')">🔴 Safety <span class="tab-count" id="cnt-safety">0</span></button>
     <button class="tab-btn"        id="tab-status_report" onclick="setTab('status_report')">📊 Status Reports <span class="tab-count" id="cnt-status_report">0</span></button>
+    <button class="tab-btn"        id="tab-payment"       onclick="setTab('payment')">💳 Payments <span class="tab-count" id="cnt-payment">0</span></button>
   </div>
 
   <div class="tasks-grid" id="tasks-grid">
@@ -398,6 +400,7 @@
     safety:        { label: 'Safety',        emoji: '🔴' },
     status_report: { label: 'Status Report', emoji: '📊' },
     meeting:       { label: 'Meeting',       emoji: '📅' },
+    payment:       { label: 'Payment',       emoji: '💳' },
   };
 
   function getEmailCategory(description) {
@@ -419,12 +422,13 @@
   }
 
   function updateTabCounts() {
-    const counts = { all: _allTasks.length, meetings: 0, safety: 0, status_report: 0 };
+    const counts = { all: _allTasks.length, meetings: 0, safety: 0, status_report: 0, payment: 0 };
     for (const t of _allTasks) {
       const cat = getEmailCategory(t.description);
       if (cat === 'safety')             counts.safety++;
       else if (cat === 'status_report') counts.status_report++;
       else if (cat === 'meeting')       counts.meetings++;
+      else if (cat === 'payment')       counts.payment++;
     }
     for (const [key, n] of Object.entries(counts)) {
       const el = document.getElementById('cnt-' + key);

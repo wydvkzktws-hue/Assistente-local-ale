@@ -36,9 +36,16 @@ CATEGORIES = {
             "progress update", "status update", "project update", "summary",
             "dashboard", "kpi", "metrics", "weekly update", "daily update",
             "end of day", "eod report", "standup notes",
+            "diário de disponibilidade dos equipamentos varejo",
         ],
         "emoji": "📊",
         "priority": "low",
+    },
+    "payment": {
+        "keywords": ["infocount"],
+        "sender_domains": ["infocount"],
+        "emoji": "💳",
+        "priority": "high",
     },
     "meeting": {
         "keywords": [
@@ -59,9 +66,15 @@ def _is_noreply(sender: str) -> bool:
 
 def _categorize(subject: str, sender: str) -> Optional[tuple]:
     """Return (category_key, emoji, priority) or None to discard."""
-    text = (subject + " " + sender).lower()
+    sender_l = sender.lower()
+    subject_l = subject.lower()
     for cat_key, info in CATEGORIES.items():
-        if any(kw in text for kw in info["keywords"]):
+        # Sender-domain check (used by payment category)
+        if any(d in sender_l for d in info.get("sender_domains", [])):
+            return cat_key, info["emoji"], info["priority"]
+        # Keyword check against subject + sender
+        text = subject_l + " " + sender_l
+        if any(kw in text for kw in info.get("keywords", [])):
             return cat_key, info["emoji"], info["priority"]
     return None
 
