@@ -2,6 +2,7 @@ import email
 import imaplib
 import json
 import os
+import urllib.parse
 from email.header import decode_header
 from typing import Optional
 
@@ -192,7 +193,11 @@ def sync_emails(rescan: bool = False) -> dict:
 
             cat_key, cat_emoji, priority = cat
             title = f"📧 {cat_emoji} {subject[:80]}"
-            desc_lines = [f"[email-category:{cat_key}]", f"From: {sender}"]
+            desc_lines = [f"[email-category:{cat_key}]"]
+            if msg_id:
+                safe_id = urllib.parse.quote(msg_id, safe='')
+                desc_lines.append(f"[gmail-link:https://mail.google.com/mail/u/0/#search/rfc822msgid:{safe_id}]")
+            desc_lines.append(f"From: {sender}")
             if body:
                 desc_lines.append("")
                 desc_lines.append(body)

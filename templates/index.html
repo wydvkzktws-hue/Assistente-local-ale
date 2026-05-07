@@ -308,6 +308,16 @@
       </select>
     </div>
     <div class="form-group">
+      <label>Category</label>
+      <select id="f-category">
+        <option value="">None</option>
+        <option value="safety">🔴 Safety</option>
+        <option value="status_report">📊 Status Report</option>
+        <option value="meeting">📅 Meeting</option>
+        <option value="payment">💳 Payment</option>
+      </select>
+    </div>
+    <div class="form-group">
       <label>Recurrence</label>
       <select id="f-recurrence">
         <option value="">None</option>
@@ -412,7 +422,15 @@
 
   function stripCategoryTag(description) {
     if (!description) return description;
-    return description.replace(/^\[email-category:\w+\]\n?/, '');
+    return description
+      .replace(/^\[email-category:\w+\]\n?/, '')
+      .replace(/^\[gmail-link:[^\]]+\]\n?/, '');
+  }
+
+  function getGmailLink(description) {
+    if (!description) return null;
+    const m = description.match(/\[gmail-link:([^\]]+)\]/);
+    return m ? m[1] : null;
   }
 
   function setTab(tab) {
@@ -567,6 +585,7 @@
       const cat = getEmailCategory(t.description);
       const catInfo = cat ? EMAIL_CATEGORIES[cat] : null;
       const cleanDesc = stripCategoryTag(t.description);
+      const gmailUrl = getGmailLink(t.description);
       const catBadge = catInfo
         ? `<span class="badge badge-${esc(cat)}">${catInfo.emoji} ${catInfo.label}</span>`
         : '';
@@ -584,6 +603,7 @@
           </div>
         </div>
         <div class="task-actions">
+          ${gmailUrl ? `<a class="btn btn-ghost btn-sm" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">📬</a>` : ''}
           ${t.status !== 'done' ? `
             <button class="btn btn-success btn-sm" onclick="doneTask(${t.id})">Done</button>
             <button class="btn btn-warning btn-sm" onclick="snoozeTask(${t.id})">Snooze</button>
@@ -623,6 +643,7 @@
     document.getElementById('f-description').value = '';
     document.getElementById('f-due').value = '';
     document.getElementById('f-priority').value = 'medium';
+    document.getElementById('f-category').value = '';
     document.getElementById('f-recurrence').value = '';
   }
 
@@ -638,8 +659,9 @@
     editingTaskId = id;
     document.getElementById('modal-title').textContent = 'Edit Task';
     document.getElementById('f-title').value = task.title ?? '';
-    document.getElementById('f-description').value = task.description ?? '';
+    document.getElementById('f-description').value = stripCategoryTag(task.description ?? '');
     document.getElementById('f-priority').value = task.priority ?? 'medium';
+    document.getElementById('f-category').value = getEmailCategory(task.description) ?? '';
     document.getElementById('f-recurrence').value = task.recurrence ?? '';
     if (task.due_at) {
       const d = new Date(task.due_at.replace(' ', 'T'));
@@ -656,9 +678,12 @@
     if (!title) { alert('Title is required.'); return; }
     const dueRaw = document.getElementById('f-due').value;
     const due_at = dueRaw ? new Date(dueRaw).toISOString().replace('T', ' ').slice(0, 19) : null;
+    const rawDesc = document.getElementById('f-description').value.trim();
+    const cat = document.getElementById('f-category').value;
+    const description = cat ? `[email-category:${cat}]\n${rawDesc}` : (rawDesc || null);
     const payload = {
       title,
-      description: document.getElementById('f-description').value.trim() || null,
+      description,
       due_at,
       priority: document.getElementById('f-priority').value,
       recurrence: document.getElementById('f-recurrence').value || null,
