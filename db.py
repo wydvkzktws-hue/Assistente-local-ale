@@ -83,7 +83,11 @@ def list_tasks(filter_by: Optional[str] = None, priority: Optional[str] = None,
             query += " AND due_at = ?"
             params.append(due_date)
             
-        query += " ORDER BY due_at ASC, priority DESC"
+        query += (
+            " ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END ASC,"
+            " due_at ASC,"
+            " CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END ASC"
+        )
         
         cursor = conn.execute(query, params)
         return cursor.fetchall()

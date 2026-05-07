@@ -592,7 +592,11 @@
       return `
       <div class="task-card ${esc(t.priority)} ${t.status === 'done' ? 'done' : ''}">
         <div class="task-info">
-          <div class="task-title ${t.status === 'done' ? 'strikethrough' : ''}">${esc(t.title)}</div>
+          <div class="task-title ${t.status === 'done' ? 'strikethrough' : ''}">
+            ${gmailUrl
+              ? `<a href="${gmailUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(t.title)}</a>`
+              : esc(t.title)}
+          </div>
           <div class="task-meta">
             <span class="badge badge-${esc(t.priority)}">${esc(t.priority)}</span>
             <span class="badge badge-${esc(t.status)}">${esc(t.status)}</span>
@@ -833,13 +837,18 @@
   });
 
   // ── Email modal ─────────────────────────────────────────────────────────────
+  let _emailConfigured = false;
+
   async function openEmailModal() {
-    // Pre-fill saved config (password excluded)
     const cfg = await api('/api/email/config');
+    _emailConfigured = cfg.configured;
     if (cfg.configured) {
       document.getElementById('em-email').value = cfg.email || '';
       document.getElementById('em-host').value = cfg.imap_host || 'imap.gmail.com';
       document.getElementById('em-password').value = '';
+      document.getElementById('em-password').placeholder = 'Saved — leave blank to keep';
+    } else {
+      document.getElementById('em-password').placeholder = 'xxxx xxxx xxxx xxxx';
     }
     document.getElementById('em-result').className = 'sync-result hidden';
     document.getElementById('email-modal').classList.add('open');
@@ -850,7 +859,7 @@
     const app_password = document.getElementById('em-password').value.trim();
     const imap_host = document.getElementById('em-host').value.trim();
 
-    if (!email_addr || !app_password) {
+    if (!email_addr || (!app_password && !_emailConfigured)) {
       alert('Email and App Password are required.');
       return;
     }

@@ -221,9 +221,17 @@ def api_email_config_get():
 @app.route("/api/email/config", methods=["POST"])
 def api_email_config_save():
     data = request.get_json(force=True)
+    app_password = (data.get("app_password") or "").strip()
+    existing = load_config()
+
+    if not app_password:
+        if not existing:
+            return jsonify({"ok": False, "error": "App Password is required."}), 400
+        app_password = existing["app_password"]
+
     cfg = {
         "email": data["email"],
-        "app_password": data["app_password"],
+        "app_password": app_password,
         "imap_host": data.get("imap_host", "imap.gmail.com"),
     }
     result = test_connection(cfg["email"], cfg["app_password"], cfg["imap_host"])
