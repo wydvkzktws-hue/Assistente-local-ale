@@ -12,6 +12,49 @@ CONFIG_PATH = os.path.join(DATA_DIR, "email_config.json")
 SEEN_IDS_PATH = os.path.join(DATA_DIR, "seen_email_ids.json")
 MAX_SEEN = 2000  # cap so the file doesn't grow forever
 
+# ── Email categories ──────────────────────────────────────────────────────────
+
+CATEGORIES = {
+    "safety": {
+        "keywords": [
+            "safety", "incident", "hazard", "accident", "emergency", "alert",
+            "warning", "risk", "fire drill", "injury", "evacuation", "unsafe",
+            "near miss", "near-miss", "ppe", "lockout", "tagout",
+        ],
+        "emoji": "🔴",
+        "priority": "high",
+    },
+    "status_report": {
+        "keywords": [
+            "status report", "weekly report", "daily report", "monthly report",
+            "progress update", "status update", "project update", "summary",
+            "dashboard", "kpi", "metrics", "weekly update", "daily update",
+            "end of day", "eod report", "standup notes",
+        ],
+        "emoji": "📊",
+        "priority": "low",
+    },
+    "meeting": {
+        "keywords": [
+            "meeting", "invite", "invitation", "calendar", "agenda",
+            "zoom", "teams", "webex", "google meet", "huddle",
+            "standup", "stand-up", "sync", "conference", "workshop",
+            "call scheduled", "join the call", "has invited you",
+        ],
+        "emoji": "📅",
+        "priority": "medium",
+    },
+}
+
+
+def _categorize(subject: str, sender: str) -> Optional[tuple]:
+    """Return (category_key, emoji, priority) or None to discard."""
+    text = (subject + " " + sender).lower()
+    for cat_key, info in CATEGORIES.items():
+        if any(kw in text for kw in info["keywords"]):
+            return cat_key, info["emoji"], info["priority"]
+    return None
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -109,8 +152,15 @@ def sync_emails() -> dict:
             sender  = _decode_header_str(msg.get("From", ""))
             body    = _extract_body(msg)
 
-            title = f"📧 {subject[:80]}"
-            desc_lines = [f"From: {sender}"]
+            cat = _categorize(subject, sender)
+            if cat is None:
+                if msg_id:
+                    seen.add(msg_id)
+                continue  # discard uncategorised email
+
+            cat_key, cat_emoji, priority = cat
+            title = f"📧 {cat_emoji} {subject[:80]}"
+            desc_lines = [f"[email-category:{cat_key}]", f"From: {sender}"]
             if body:
                 desc_lines.append("")
                 desc_lines.append(body)
@@ -118,7 +168,7 @@ def sync_emails() -> dict:
             create_task(
                 title=title,
                 description="\n".join(desc_lines),
-                priority="medium",
+                priority=priority,
             )
             imported += 1
 

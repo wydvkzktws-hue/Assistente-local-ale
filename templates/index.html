@@ -101,6 +101,10 @@
     .badge-done    { background: #f3f4f6; color: #6b7280; }
     .badge-snoozed { background: #fff7ed; color: #c2410c; }
 
+    .badge-safety        { background: #fee2e2; color: #b91c1c; }
+    .badge-status_report { background: #e0f2fe; color: #0369a1; }
+    .badge-meeting       { background: #fef9c3; color: #92400e; }
+
     .task-actions {
       display: flex; gap: 0.35rem; align-items: flex-start;
       flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end;
@@ -241,6 +245,12 @@
       <option value="medium">Medium</option>
       <option value="low">Low</option>
     </select>
+    <select id="filter-category" onchange="renderFilteredTasks()">
+      <option value="">All emails</option>
+      <option value="safety">🔴 Safety</option>
+      <option value="status_report">📊 Status reports</option>
+      <option value="meeting">📅 Meetings</option>
+    </select>
   </div>
 
   <div class="tasks-grid" id="tasks-grid">
@@ -358,6 +368,24 @@
 
 <script>
   let editingTaskId = null;
+  let _allTasks = [];
+
+  const EMAIL_CATEGORIES = {
+    safety:        { label: 'Safety',        emoji: '🔴' },
+    status_report: { label: 'Status Report', emoji: '📊' },
+    meeting:       { label: 'Meeting',       emoji: '📅' },
+  };
+
+  function getEmailCategory(description) {
+    if (!description) return null;
+    const m = description.match(/^\[email-category:(\w+)\]/);
+    return m ? m[1] : null;
+  }
+
+  function stripCategoryTag(description) {
+    if (!description) return description;
+    return description.replace(/^\[email-category:\w+\]\n?/, '');
+  }
 
   // ── Toast ───────────────────────────────────────────────────────────────────
   let toastTimer;
@@ -410,8 +438,10 @@
           showDesktopNotif('Daily Check-in', 'Time to plan your day!');
         } else if (data.type === 'email_sync') {
           const n = data.imported;
-          toast(`📧 ${n} new email task${n > 1 ? 's' : ''} imported.`);
-          showDesktopNotif('New email tasks', `${n} unread email${n > 1 ? 's' : ''} added as task${n > 1 ? 's' : ''}.`);
+          if (n > 0) {
+            toast(`📧 ${n} email task${n > 1 ? 's' : ''} imported (safety/reports/meetings).`);
+            showDesktopNotif('New email tasks', `${n} categorised email${n > 1 ? 's' : ''} added as task${n > 1 ? 's' : ''}.`);
+          }
           loadTasks();
           updateEmailPill();
         }
@@ -443,7 +473,8 @@
     if (p) params.set('priority', p);
     try {
       const tasks = await api('/api/tasks?' + params);
-      renderTasks(tasks);
+      _allTasks = tasks;
+      renderFilteredTasks();
     } catch (_) {
       document.getElementById('tasks-grid').innerHTML =
         '<div class="empty-state"><div class="icon">⚠️</div><p>Could not load tasks.</p></div>';
@@ -463,22 +494,39 @@
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  function renderFilteredTasks() {
+    const catFilter = document.getElementById('filter-category').value;
+    let tasks = _allTasks;
+    if (catFilter) {
+      tasks = tasks.filter(t => getEmailCategory(t.description) === catFilter);
+    }
+    renderTasks(tasks);
+  }
+
   function renderTasks(tasks) {
     const grid = document.getElementById('tasks-grid');
     if (!tasks.length) {
       grid.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>No tasks here.</p></div>';
       return;
     }
-    grid.innerHTML = tasks.map(t => `
+    grid.innerHTML = tasks.map(t => {
+      const cat = getEmailCategory(t.description);
+      const catInfo = cat ? EMAIL_CATEGORIES[cat] : null;
+      const cleanDesc = stripCategoryTag(t.description);
+      const catBadge = catInfo
+        ? `<span class="badge badge-${esc(cat)}">${catInfo.emoji} ${catInfo.label}</span>`
+        : '';
+      return `
       <div class="task-card ${esc(t.priority)} ${t.status === 'done' ? 'done' : ''}">
         <div class="task-info">
           <div class="task-title ${t.status === 'done' ? 'strikethrough' : ''}">${esc(t.title)}</div>
           <div class="task-meta">
             <span class="badge badge-${esc(t.priority)}">${esc(t.priority)}</span>
             <span class="badge badge-${esc(t.status)}">${esc(t.status)}</span>
+            ${catBadge}
             <span>📅 ${formatDue(t.due_at)}</span>
             ${t.recurrence ? `<span>🔁 ${esc(t.recurrence)}</span>` : ''}
-            ${t.description ? `<span title="${esc(t.description)}">📝 ${esc(t.description.slice(0,50))}${t.description.length > 50 ? '…' : ''}</span>` : ''}
+            ${cleanDesc ? `<span title="${esc(cleanDesc)}">📝 ${esc(cleanDesc.slice(0,50))}${cleanDesc.length > 50 ? '…' : ''}</span>` : ''}
           </div>
         </div>
         <div class="task-actions">
@@ -489,8 +537,8 @@
           <button class="btn btn-ghost btn-sm" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})'>Edit</button>
           <button class="btn btn-danger btn-sm" onclick="removeTask(${t.id})">Del</button>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
   // ── Task actions ────────────────────────────────────────────────────────────
