@@ -8,8 +8,9 @@ from datetime import datetime, timedelta
 
 from flask import Flask, Response, jsonify, render_template, request
 
-from db import (complete_task, create_task, delete_task, get_pending_tasks,
-                get_task, init_db, list_tasks, snooze_task, update_task)
+from db import (cleanup_stale_tasks, complete_task, create_task, delete_task,
+                get_pending_tasks, get_task, init_db, list_tasks, reopen_task,
+                snooze_task, update_task)
 from email_sync import load_config, save_config, sync_emails, test_connection
 from notify import send_notification
 from recurrence import calculate_next_due_date
@@ -77,9 +78,17 @@ def _fire_daily_checkin() -> None:
     send_notification("Daily Check-in", body, 0)
 
 
+def _run_cleanup() -> None:
+    deleted = cleanup_stale_tasks(days=3)
+    if deleted:
+        _push_to_clients({"type": "cleanup", "deleted": deleted})
+
+
 def _notification_loop() -> None:
     schedule.every().day.at("11:00").do(_fire_daily_checkin)
     schedule.every(5).minutes.do(_run_email_sync)
+    schedule.every(1).hours.do(_run_cleanup)
+    _run_cleanup()
 
     while True:
         try:
@@ -198,6 +207,14 @@ def api_complete_task(task_id: int):
     return jsonify({"ok": True})
 
 
+@app.route("/api/tasks/<int:task_id>/reopen", methods=["POST"])
+def api_reopen_task(task_id: int):
+    if not get_task(task_id):
+        return jsonify({"error": "Not found"}), 404
+    reopen_task(task_id)
+    return jsonify({"ok": True})
+
+
 @app.route("/api/tasks/<int:task_id>/snooze", methods=["POST"])
 def api_snooze_task(task_id: int):
     data = request.get_json(force=True) or {}
@@ -264,4 +281,4 @@ def api_email_status():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=False, threaded=True)
+    app.run(host="127.0.0.1", port=5050, debug=False, threaded=True)

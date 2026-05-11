@@ -29,7 +29,8 @@
     header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
     #stream-status { font-size: 0.78rem; opacity: 0.65; }
 
-    .container { max-width: 860px; margin: 2rem auto; padding: 0 1.25rem; }
+    .container { max-width: 860px; margin: 2rem auto; padding: 0 1.25rem; transition: max-width 0.2s; }
+    .container.wide { max-width: 1320px; }
 
     .notif-banner {
       background: #fffbeb; border: 1px solid #fbbf24; border-radius: 10px;
@@ -227,6 +228,109 @@
     }
     .tab-btn.active .tab-count { background: #ede9fe; color: #6d28d9; }
 
+    /* ── View toggle ── */
+    .view-toggle {
+      display: inline-flex; background: #e4e4e7;
+      border-radius: 8px; padding: 3px; margin-left: auto;
+    }
+    .view-btn {
+      background: none; border: none; cursor: pointer;
+      padding: 0.35rem 0.8rem; font-size: 0.82rem; font-weight: 500;
+      color: #6b7280; border-radius: 6px;
+      transition: background 0.12s, color 0.12s;
+    }
+    .view-btn.active {
+      background: #fff; color: #1e1e2e;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+
+    /* ── Kanban ── */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(240px, 1fr));
+      gap: 0.85rem;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      align-items: start;
+    }
+
+    .kanban-column {
+      background: #f3f4f6; border-radius: 12px;
+      padding: 0.85rem; min-width: 240px;
+      display: flex; flex-direction: column; gap: 0.55rem;
+      min-height: 220px;
+      transition: background 0.12s, outline 0.12s;
+    }
+    .kanban-column.drop-target {
+      background: #ede9fe;
+      outline: 2px dashed #7c3aed; outline-offset: -3px;
+    }
+    .kanban-column.no-drop { cursor: not-allowed; }
+
+    .kanban-column-header {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.85rem; font-weight: 700; color: #374151;
+      padding: 0 0.15rem 0.55rem;
+      border-bottom: 2px solid #e5e7eb; margin-bottom: 0.15rem;
+    }
+    .kanban-column[data-col="todo"]    .kanban-column-header { color: #1d4ed8; }
+    .kanban-column[data-col="overdue"] .kanban-column-header { color: #b91c1c; }
+    .kanban-column[data-col="snoozed"] .kanban-column-header { color: #c2410c; }
+    .kanban-column[data-col="done"]    .kanban-column-header { color: #15803d; }
+
+    .col-count {
+      background: #d1d5db; color: #1f2937;
+      font-size: 0.68rem; font-weight: 700;
+      padding: 0.1rem 0.5rem; border-radius: 99px; min-width: 1.4rem; text-align: center;
+    }
+    .kanban-column[data-col="todo"]    .col-count { background: #dbeafe; color: #1d4ed8; }
+    .kanban-column[data-col="overdue"] .col-count { background: #fee2e2; color: #b91c1c; }
+    .kanban-column[data-col="snoozed"] .col-count { background: #ffedd5; color: #c2410c; }
+    .kanban-column[data-col="done"]    .col-count { background: #d1fae5; color: #15803d; }
+
+    .kanban-column-empty {
+      text-align: center; font-size: 0.75rem; color: #9ca3af;
+      padding: 1.5rem 0.5rem; border: 1px dashed #d1d5db; border-radius: 8px;
+    }
+
+    .kanban-card {
+      background: #fff; border-radius: 9px;
+      padding: 0.7rem 0.8rem; border-left: 4px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      cursor: grab; user-select: none;
+      transition: box-shadow 0.12s, transform 0.08s;
+    }
+    .kanban-card:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.11); }
+    .kanban-card:active { cursor: grabbing; }
+    .kanban-card.dragging { opacity: 0.45; transform: rotate(-1deg); }
+
+    .kanban-card.high   { border-left-color: #dc2626; }
+    .kanban-card.medium { border-left-color: #d97706; }
+    .kanban-card.low    { border-left-color: #16a34a; }
+    .kanban-card.done   { opacity: 0.65; }
+
+    .kanban-card-title {
+      font-size: 0.86rem; font-weight: 600;
+      margin-bottom: 0.4rem; line-height: 1.3;
+      word-break: break-word;
+    }
+    .kanban-card.done .kanban-card-title { text-decoration: line-through; color: #6b7280; }
+
+    .kanban-card-meta {
+      display: flex; flex-wrap: wrap; gap: 0.3rem 0.45rem;
+      font-size: 0.72rem; color: #6b7280;
+      margin-bottom: 0.5rem; align-items: center;
+    }
+
+    .kanban-card-actions {
+      display: flex; gap: 0.25rem; flex-wrap: wrap;
+    }
+    .kanban-card-actions .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.72rem; }
+
+    @media (max-width: 720px) {
+      .kanban-board { grid-template-columns: repeat(4, 78vw); }
+    }
+
     /* ── Toast ── */
     #toast {
       position: fixed; bottom: 1.5rem; right: 1.5rem;
@@ -268,6 +372,10 @@
       <option value="medium">Medium</option>
       <option value="low">Low</option>
     </select>
+    <div class="view-toggle" role="tablist" aria-label="View mode">
+      <button class="view-btn active" id="view-list"   onclick="setView('list')"   title="List view">📋 List</button>
+      <button class="view-btn"        id="view-kanban" onclick="setView('kanban')" title="Kanban view">📊 Kanban</button>
+    </div>
   </div>
 
   <div class="tab-bar">
@@ -406,6 +514,30 @@
   let editingTaskId = null;
   let _allTasks = [];
   let _activeTab = 'all';
+  let _view = localStorage.getItem('view') || 'list';
+
+  const KANBAN_COLUMNS = [
+    { id: 'todo',    label: '📥 To Do'    },
+    { id: 'overdue', label: '⏰ Overdue'  },
+    { id: 'snoozed', label: '💤 Snoozed'  },
+    { id: 'done',    label: '✅ Done'     },
+  ];
+
+  function getColumnForTask(t) {
+    if (t.status === 'done')    return 'done';
+    if (t.status === 'snoozed') return 'snoozed';
+    if (t.due_at && new Date(t.due_at.replace(' ', 'T')) < new Date()) return 'overdue';
+    return 'todo';
+  }
+
+  function setView(v) {
+    _view = v;
+    localStorage.setItem('view', v);
+    document.getElementById('view-list').classList.toggle('active', v === 'list');
+    document.getElementById('view-kanban').classList.toggle('active', v === 'kanban');
+    document.querySelector('.container').classList.toggle('wide', v === 'kanban');
+    renderFilteredTasks();
+  }
 
   const EMAIL_CATEGORIES = {
     safety:        { label: 'Safety',        emoji: '🔴' },
@@ -581,6 +713,10 @@
       grid.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>No tasks here.</p></div>';
       return;
     }
+    if (_view === 'kanban') {
+      renderKanban(tasks, grid);
+      return;
+    }
     grid.innerHTML = tasks.map(t => {
       const cat = getEmailCategory(t.description);
       const catInfo = cat ? EMAIL_CATEGORIES[cat] : null;
@@ -617,6 +753,138 @@
         </div>
       </div>`;
     }).join('');
+  }
+
+  // ── Kanban rendering ────────────────────────────────────────────────────────
+  function renderKanban(tasks, grid) {
+    const byCol = { todo: [], overdue: [], snoozed: [], done: [] };
+    for (const t of tasks) byCol[getColumnForTask(t)].push(t);
+
+    grid.innerHTML = `
+      <div class="kanban-board">
+        ${KANBAN_COLUMNS.map(col => `
+          <div class="kanban-column" data-col="${col.id}"
+               ondragover="kanbanDragOver(event, '${col.id}')"
+               ondragleave="kanbanDragLeave(event)"
+               ondrop="kanbanDrop(event, '${col.id}')">
+            <div class="kanban-column-header">
+              <span>${col.label}</span>
+              <span class="col-count">${byCol[col.id].length}</span>
+            </div>
+            ${byCol[col.id].length
+              ? byCol[col.id].map(renderKanbanCard).join('')
+              : '<div class="kanban-column-empty">Empty</div>'}
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function renderKanbanCard(t) {
+    const cat = getEmailCategory(t.description);
+    const catInfo = cat ? EMAIL_CATEGORIES[cat] : null;
+    const cleanDesc = stripCategoryTag(t.description);
+    const gmailUrl = getGmailLink(t.description);
+    const catBadge = catInfo
+      ? `<span class="badge badge-${esc(cat)}">${catInfo.emoji} ${catInfo.label}</span>`
+      : '';
+    const isDone = t.status === 'done';
+    return `
+      <div class="kanban-card ${esc(t.priority)} ${isDone ? 'done' : ''}"
+           draggable="true"
+           ondragstart="kanbanDragStart(event, ${t.id})"
+           ondragend="kanbanDragEnd(event)"
+           data-task-id="${t.id}">
+        <div class="kanban-card-title">
+          ${gmailUrl
+            ? `<a href="${gmailUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(t.title)}</a>`
+            : esc(t.title)}
+        </div>
+        <div class="kanban-card-meta">
+          <span class="badge badge-${esc(t.priority)}">${esc(t.priority)}</span>
+          ${catBadge}
+          <span>📅 ${formatDue(t.due_at)}</span>
+          ${t.recurrence ? `<span>🔁 ${esc(t.recurrence)}</span>` : ''}
+          ${cleanDesc ? `<span title="${esc(cleanDesc)}">📝 ${esc(cleanDesc.slice(0,40))}${cleanDesc.length > 40 ? '…' : ''}</span>` : ''}
+        </div>
+        <div class="kanban-card-actions">
+          ${gmailUrl ? `<a class="btn btn-ghost btn-sm" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">📬</a>` : ''}
+          ${!isDone ? `
+            <button class="btn btn-success btn-sm" onclick="doneTask(${t.id})" title="Mark done">✓</button>
+            <button class="btn btn-warning btn-sm" onclick="snoozeTask(${t.id})" title="Snooze">💤</button>
+          ` : `
+            <button class="btn btn-ghost btn-sm" onclick="reopenTask(${t.id})" title="Reopen">↩</button>
+          `}
+          <button class="btn btn-ghost btn-sm" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})' title="Edit">✎</button>
+          <button class="btn btn-danger btn-sm" onclick="removeTask(${t.id})" title="Delete">🗑</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Kanban drag & drop ──────────────────────────────────────────────────────
+  let _draggedTaskId = null;
+
+  function kanbanDragStart(e, id) {
+    _draggedTaskId = id;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(id));
+    e.target.classList.add('dragging');
+  }
+
+  function kanbanDragEnd(e) {
+    e.target.classList.remove('dragging');
+    document.querySelectorAll('.kanban-column.drop-target')
+      .forEach(c => c.classList.remove('drop-target'));
+    _draggedTaskId = null;
+  }
+
+  function kanbanDragOver(e, colId) {
+    if (colId === 'overdue') return; // can't manually drop into Overdue (derived state)
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drop-target');
+  }
+
+  function kanbanDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      e.currentTarget.classList.remove('drop-target');
+    }
+  }
+
+  async function kanbanDrop(e, colId) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drop-target');
+    const id = _draggedTaskId ?? Number(e.dataTransfer.getData('text/plain'));
+    _draggedTaskId = null;
+    if (!id) return;
+
+    const task = _allTasks.find(t => t.id === id);
+    if (!task) return;
+    const from = getColumnForTask(task);
+    if (from === colId) return;
+
+    try {
+      if (colId === 'done') {
+        await api(`/api/tasks/${id}/done`, { method: 'POST', body: '{}' });
+        toast('Task completed!');
+      } else if (colId === 'snoozed') {
+        await api(`/api/tasks/${id}/snooze`, { method: 'POST', body: JSON.stringify({ minutes: 30 }) });
+        toast('Snoozed for 30 minutes.');
+      } else if (colId === 'todo') {
+        await api(`/api/tasks/${id}/reopen`, { method: 'POST', body: '{}' });
+        toast('Task reopened.');
+      }
+      loadTasks();
+    } catch (err) {
+      toast('Could not move task.');
+    }
+  }
+
+  async function reopenTask(id) {
+    await api(`/api/tasks/${id}/reopen`, { method: 'POST', body: '{}' });
+    toast('Task reopened.');
+    loadTasks();
   }
 
   // ── Task actions ────────────────────────────────────────────────────────────
@@ -681,7 +949,7 @@
     const title = document.getElementById('f-title').value.trim();
     if (!title) { alert('Title is required.'); return; }
     const dueRaw = document.getElementById('f-due').value;
-    const due_at = dueRaw ? new Date(dueRaw).toISOString().replace('T', ' ').slice(0, 19) : null;
+    const due_at = dueRaw ? dueRaw.replace('T', ' ') + ':00' : null;
     const rawDesc = document.getElementById('f-description').value.trim();
     const cat = document.getElementById('f-category').value;
     const description = cat ? `[email-category:${cat}]\n${rawDesc}` : (rawDesc || null);
@@ -951,6 +1219,7 @@
   // ── Init ────────────────────────────────────────────────────────────────────
   checkNotifPermission();
   connectStream();
+  setView(_view); // applies persisted view (list/kanban) and triggers initial render
   loadTasks();
   updateEmailPill();
   setInterval(loadTasks, 60000);

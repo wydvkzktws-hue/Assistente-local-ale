@@ -124,6 +124,17 @@ def complete_task(task_id: int) -> bool:
         conn.commit()
         return conn.total_changes > 0
 
+def reopen_task(task_id: int) -> bool:
+    """Reopen a task: set to pending and clear snoozed_until."""
+    updated_at = datetime.now().isoformat()
+    with get_db_connection() as conn:
+        conn.execute(
+            'UPDATE tasks SET status = ?, snoozed_until = NULL, updated_at = ? WHERE id = ?',
+            ('pending', updated_at, task_id),
+        )
+        conn.commit()
+        return conn.total_changes > 0
+
 def get_pending_tasks() -> List[Tuple]:
     """Get all pending tasks that are due or not due."""
     now = datetime.now().isoformat()
@@ -147,6 +158,26 @@ def snooze_task(task_id: int, minutes: int) -> bool:
                     ('snoozed', snooze_time, task_id))
         conn.commit()
         return conn.total_changes > 0
+
+def cleanup_stale_tasks(days: int = 3) -> int:
+    """Delete pending non-recurring tasks that are either:
+      - overdue by more than `days` days, or
+      - have no due date and were created more than `days` days ago.
+    Returns the number of deleted rows."""
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+    with get_db_connection() as conn:
+        cursor = conn.execute('''
+            DELETE FROM tasks
+            WHERE status = 'pending'
+              AND (recurrence IS NULL OR recurrence = '')
+              AND (
+                    (due_at IS NOT NULL AND due_at < ?)
+                 OR (due_at IS NULL AND created_at IS NOT NULL AND created_at < ?)
+              )
+        ''', (cutoff, cutoff))
+        conn.commit()
+        return cursor.rowcount
+
 
 def get_daemon_pid() -> Optional[int]:
     """Get the daemon PID from the PID file."""
