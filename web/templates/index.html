@@ -332,6 +332,95 @@
     }
 
     /* ── Toast ── */
+    /* ── Email sender groups ── */
+    .email-group {
+      background: #fff; border-radius: 10px;
+      border-left: 5px solid #93c5fd;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+    .email-group-header {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.85rem 1.1rem; cursor: pointer;
+      user-select: none; transition: background 0.12s;
+    }
+    .email-group-header:hover { background: #f9fafb; }
+    .email-group-chevron {
+      font-size: 0.8rem; color: #6b7280; width: 1rem;
+      transition: transform 0.15s;
+    }
+    .email-group.open .email-group-chevron { transform: rotate(90deg); }
+    .email-group-sender { font-weight: 600; font-size: 0.92rem; color: #1e1e2e; min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .email-group-count {
+      background: #dbeafe; color: #1d4ed8;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 0.1rem 0.5rem; border-radius: 99px;
+      flex-shrink: 0;
+    }
+    .email-group-preview {
+      font-size: 0.78rem; color: #6b7280;
+      flex: 1; min-width: 0; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+      text-align: right;
+    }
+    .email-group-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.25s ease;
+      padding: 0 0.6rem;
+    }
+    .email-group.open .email-group-body {
+      max-height: 4000px;
+      padding: 0.2rem 0.6rem 0.6rem;
+    }
+    .email-group-body .task-card {
+      border-left-width: 3px;
+      box-shadow: none;
+      margin-top: 0.4rem;
+    }
+
+    /* Kanban variant — compact */
+    .kanban-group {
+      background: #fff; border-radius: 9px;
+      border-left: 4px solid #93c5fd;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      overflow: hidden;
+    }
+    .kanban-group-header {
+      display: flex; align-items: center; gap: 0.45rem;
+      padding: 0.55rem 0.7rem; cursor: pointer;
+      user-select: none; transition: background 0.12s;
+    }
+    .kanban-group-header:hover { background: #f9fafb; }
+    .kanban-group-chevron {
+      font-size: 0.72rem; color: #6b7280;
+      transition: transform 0.15s;
+    }
+    .kanban-group.open .kanban-group-chevron { transform: rotate(90deg); }
+    .kanban-group-sender {
+      font-size: 0.8rem; font-weight: 600; color: #1e1e2e;
+      flex: 1; min-width: 0; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .kanban-group-count {
+      background: #dbeafe; color: #1d4ed8;
+      font-size: 0.66rem; font-weight: 700;
+      padding: 0.08rem 0.42rem; border-radius: 99px;
+      flex-shrink: 0;
+    }
+    .kanban-group-body {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.25s ease;
+      padding: 0 0.4rem;
+    }
+    .kanban-group.open .kanban-group-body {
+      max-height: 4000px;
+      padding: 0.15rem 0.4rem 0.4rem;
+    }
+    .kanban-group-body .kanban-card {
+      box-shadow: none;
+      margin-top: 0.35rem;
+    }
+
     #toast {
       position: fixed; bottom: 1.5rem; right: 1.5rem;
       background: #1e1e2e; color: #cdd6f4;
@@ -565,6 +654,42 @@
     return m ? m[1] : null;
   }
 
+  function getEmailSender(description) {
+    if (!description) return null;
+    const m = description.match(/^From:\s*(.+)$/m);
+    return m ? m[1].trim() : null;
+  }
+
+  function normalizeSender(s) {
+    if (!s) return null;
+    const m = s.match(/<([^>]+)>/);
+    return (m ? m[1] : s).trim().toLowerCase();
+  }
+
+  function senderDisplayName(s) {
+    if (!s) return '';
+    const m = s.match(/^(.*?)\s*<([^>]+)>\s*$/);
+    if (m && m[1].trim()) return m[1].trim().replace(/^"|"$/g, '');
+    return (m ? m[2] : s).trim();
+  }
+
+  function isGroupOpen(key) {
+    try {
+      const raw = localStorage.getItem('emailGroupOpen');
+      const obj = raw ? JSON.parse(raw) : {};
+      return !!obj[key];
+    } catch (_) { return false; }
+  }
+
+  function toggleEmailGroup(key) {
+    let obj = {};
+    try { obj = JSON.parse(localStorage.getItem('emailGroupOpen') || '{}'); } catch (_) {}
+    obj[key] = !obj[key];
+    localStorage.setItem('emailGroupOpen', JSON.stringify(obj));
+    const el = document.querySelector(`[data-group="${CSS.escape(key)}"]`);
+    if (el) el.classList.toggle('open', obj[key]);
+  }
+
   function setTab(tab) {
     _activeTab = tab;
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -707,6 +832,43 @@
     renderTasks(tasks);
   }
 
+  function renderTaskCard(t) {
+    const cat = getEmailCategory(t.description);
+    const catInfo = cat ? EMAIL_CATEGORIES[cat] : null;
+    const cleanDesc = stripCategoryTag(t.description);
+    const gmailUrl = getGmailLink(t.description);
+    const catBadge = catInfo
+      ? `<span class="badge badge-${esc(cat)}">${catInfo.emoji} ${catInfo.label}</span>`
+      : '';
+    return `
+    <div class="task-card ${esc(t.priority)} ${t.status === 'done' ? 'done' : ''}">
+      <div class="task-info">
+        <div class="task-title ${t.status === 'done' ? 'strikethrough' : ''}">
+          ${gmailUrl
+            ? `<a href="${gmailUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(t.title)}</a>`
+            : esc(t.title)}
+        </div>
+        <div class="task-meta">
+          <span class="badge badge-${esc(t.priority)}">${esc(t.priority)}</span>
+          <span class="badge badge-${esc(t.status)}">${esc(t.status)}</span>
+          ${catBadge}
+          <span>📅 ${formatDue(t.due_at)}</span>
+          ${t.recurrence ? `<span>🔁 ${esc(t.recurrence)}</span>` : ''}
+          ${cleanDesc ? `<span title="${esc(cleanDesc)}">📝 ${esc(cleanDesc.slice(0,50))}${cleanDesc.length > 50 ? '…' : ''}</span>` : ''}
+        </div>
+      </div>
+      <div class="task-actions">
+        ${gmailUrl ? `<a class="btn btn-ghost btn-sm" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">📬</a>` : ''}
+        ${t.status !== 'done' ? `
+          <button class="btn btn-success btn-sm" onclick="doneTask(${t.id})">Done</button>
+          <button class="btn btn-warning btn-sm" onclick="snoozeTask(${t.id})">Snooze</button>
+        ` : ''}
+        <button class="btn btn-ghost btn-sm" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="removeTask(${t.id})">Del</button>
+      </div>
+    </div>`;
+  }
+
   function renderTasks(tasks) {
     const grid = document.getElementById('tasks-grid');
     if (!tasks.length) {
@@ -717,45 +879,100 @@
       renderKanban(tasks, grid);
       return;
     }
-    grid.innerHTML = tasks.map(t => {
-      const cat = getEmailCategory(t.description);
-      const catInfo = cat ? EMAIL_CATEGORIES[cat] : null;
-      const cleanDesc = stripCategoryTag(t.description);
-      const gmailUrl = getGmailLink(t.description);
-      const catBadge = catInfo
-        ? `<span class="badge badge-${esc(cat)}">${catInfo.emoji} ${catInfo.label}</span>`
-        : '';
+
+    // Group email tasks by sender; keep original order via first-occurrence index.
+    const groups = new Map();
+    const items = []; // entries: { kind: 'task'|'group', ... }
+    for (const t of tasks) {
+      const senderRaw = getEmailSender(t.description);
+      const key = normalizeSender(senderRaw);
+      if (!key) {
+        items.push({ kind: 'task', task: t });
+        continue;
+      }
+      if (!groups.has(key)) {
+        const g = { kind: 'group', key, senderRaw, tasks: [], index: items.length };
+        groups.set(key, g);
+        items.push(g);
+      }
+      groups.get(key).tasks.push(t);
+    }
+
+    grid.innerHTML = items.map(item => {
+      if (item.kind === 'task') return renderTaskCard(item.task);
+      if (item.tasks.length === 1) return renderTaskCard(item.tasks[0]);
+
+      const open = isGroupOpen(item.key);
+      const newest = item.tasks.reduce((a, b) => {
+        const ad = a.due_at || a.created_at || '';
+        const bd = b.due_at || b.created_at || '';
+        return bd > ad ? b : a;
+      });
+      const sortedTasks = item.tasks.slice().sort((a, b) => {
+        const ad = a.due_at || a.created_at || '';
+        const bd = b.due_at || b.created_at || '';
+        return bd.localeCompare(ad);
+      });
+      const display = senderDisplayName(item.senderRaw);
+      const preview = `${esc(newest.title)} · ${formatDue(newest.due_at)}`;
       return `
-      <div class="task-card ${esc(t.priority)} ${t.status === 'done' ? 'done' : ''}">
-        <div class="task-info">
-          <div class="task-title ${t.status === 'done' ? 'strikethrough' : ''}">
-            ${gmailUrl
-              ? `<a href="${gmailUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(t.title)}</a>`
-              : esc(t.title)}
+        <div class="email-group ${open ? 'open' : ''}" data-group="${esc(item.key)}">
+          <div class="email-group-header" onclick="toggleEmailGroup('${esc(item.key)}')">
+            <span class="email-group-chevron">▸</span>
+            <span class="email-group-sender" title="${esc(item.senderRaw)}">📧 ${esc(display)}</span>
+            <span class="email-group-count">${item.tasks.length}</span>
+            <span class="email-group-preview">${preview}</span>
           </div>
-          <div class="task-meta">
-            <span class="badge badge-${esc(t.priority)}">${esc(t.priority)}</span>
-            <span class="badge badge-${esc(t.status)}">${esc(t.status)}</span>
-            ${catBadge}
-            <span>📅 ${formatDue(t.due_at)}</span>
-            ${t.recurrence ? `<span>🔁 ${esc(t.recurrence)}</span>` : ''}
-            ${cleanDesc ? `<span title="${esc(cleanDesc)}">📝 ${esc(cleanDesc.slice(0,50))}${cleanDesc.length > 50 ? '…' : ''}</span>` : ''}
+          <div class="email-group-body">
+            ${sortedTasks.map(renderTaskCard).join('')}
           </div>
-        </div>
-        <div class="task-actions">
-          ${gmailUrl ? `<a class="btn btn-ghost btn-sm" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">📬</a>` : ''}
-          ${t.status !== 'done' ? `
-            <button class="btn btn-success btn-sm" onclick="doneTask(${t.id})">Done</button>
-            <button class="btn btn-warning btn-sm" onclick="snoozeTask(${t.id})">Snooze</button>
-          ` : ''}
-          <button class="btn btn-ghost btn-sm" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})'>Edit</button>
-          <button class="btn btn-danger btn-sm" onclick="removeTask(${t.id})">Del</button>
-        </div>
-      </div>`;
+        </div>`;
     }).join('');
   }
 
   // ── Kanban rendering ────────────────────────────────────────────────────────
+  function renderKanbanColumnBody(colId, tasks) {
+    if (!tasks.length) return '<div class="kanban-column-empty">Empty</div>';
+
+    const groups = new Map();
+    const items = [];
+    for (const t of tasks) {
+      const senderRaw = getEmailSender(t.description);
+      const key = normalizeSender(senderRaw);
+      if (!key) { items.push({ kind: 'task', task: t }); continue; }
+      if (!groups.has(key)) {
+        const g = { kind: 'group', key, senderRaw, tasks: [] };
+        groups.set(key, g);
+        items.push(g);
+      }
+      groups.get(key).tasks.push(t);
+    }
+
+    return items.map(item => {
+      if (item.kind === 'task') return renderKanbanCard(item.task);
+      if (item.tasks.length === 1) return renderKanbanCard(item.tasks[0]);
+      const groupKey = `${colId}:${item.key}`;
+      const open = isGroupOpen(groupKey);
+      const sortedTasks = item.tasks.slice().sort((a, b) => {
+        const ad = a.due_at || a.created_at || '';
+        const bd = b.due_at || b.created_at || '';
+        return bd.localeCompare(ad);
+      });
+      const display = senderDisplayName(item.senderRaw);
+      return `
+        <div class="kanban-group ${open ? 'open' : ''}" data-group="${esc(groupKey)}">
+          <div class="kanban-group-header" onclick="toggleEmailGroup('${esc(groupKey)}')">
+            <span class="kanban-group-chevron">▸</span>
+            <span class="kanban-group-sender" title="${esc(item.senderRaw)}">📧 ${esc(display)}</span>
+            <span class="kanban-group-count">${item.tasks.length}</span>
+          </div>
+          <div class="kanban-group-body">
+            ${sortedTasks.map(renderKanbanCard).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
   function renderKanban(tasks, grid) {
     const byCol = { todo: [], overdue: [], snoozed: [], done: [] };
     for (const t of tasks) byCol[getColumnForTask(t)].push(t);
@@ -771,9 +988,7 @@
               <span>${col.label}</span>
               <span class="col-count">${byCol[col.id].length}</span>
             </div>
-            ${byCol[col.id].length
-              ? byCol[col.id].map(renderKanbanCard).join('')
-              : '<div class="kanban-column-empty">Empty</div>'}
+            ${renderKanbanColumnBody(col.id, byCol[col.id])}
           </div>
         `).join('')}
       </div>

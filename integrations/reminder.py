@@ -6,8 +6,8 @@ import signal
 import sys
 import os
 from datetime import datetime
-from db import get_pending_tasks, update_task, complete_task, save_daemon_pid, remove_daemon_pid
-from notify import send_notification
+from core.db import get_pending_tasks, update_task, complete_task, save_daemon_pid, remove_daemon_pid
+from integrations.notify import send_notification
 
 # Global flag for daemon shutdown
 shutdown_requested = False

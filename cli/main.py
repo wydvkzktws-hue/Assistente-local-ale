@@ -3,9 +3,9 @@ import os
 import sys
 import textwrap
 from datetime import datetime
-from db import init_db, create_task, get_task, list_tasks, update_task, delete_task, complete_task, snooze_task, get_daemon_pid
-from reminder import start_daemon
-from recurrence import calculate_next_due_date
+from core.db import init_db, create_task, get_task, list_tasks, update_task, delete_task, complete_task, snooze_task, get_daemon_pid
+from integrations.reminder import start_daemon
+from core.recurrence import calculate_next_due_date
 
 def setup():
     """Initialize the database."""
@@ -223,11 +223,11 @@ def start_daemon_cmd():
         import sys
         
         # Start daemon in background
-        cmd = [sys.executable, 'reminder.py']
+        cmd = [sys.executable, '-m', 'integrations.reminder']
         process = subprocess.Popen(cmd)
         print(f"Daemon started with PID: {process.pid}")
         # Save PID
-        from db import save_daemon_pid
+        from core.db import save_daemon_pid
         save_daemon_pid(process.pid)
         
     except Exception as e:

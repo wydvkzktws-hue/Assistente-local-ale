@@ -28,7 +28,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "assistant=main:main",
+            "assistant=cli.main:main",
         ],
     },
     include_package_data=True,

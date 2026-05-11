@@ -6,7 +6,7 @@ import urllib.parse
 from email.header import decode_header
 from typing import Optional
 
-from db import create_task
+from core.db import create_task
 
 DATA_DIR = os.path.expanduser("~/.assistant")
 CONFIG_PATH = os.path.join(DATA_DIR, "email_config.json")

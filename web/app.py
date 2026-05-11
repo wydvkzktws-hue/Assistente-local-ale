@@ -8,12 +8,12 @@ from datetime import datetime, timedelta
 
 from flask import Flask, Response, jsonify, render_template, request
 
-from db import (cleanup_stale_tasks, complete_task, create_task, delete_task,
+from core.db import (cleanup_stale_tasks, complete_task, create_task, delete_task,
                 get_pending_tasks, get_task, init_db, list_tasks, reopen_task,
                 snooze_task, update_task)
-from email_sync import load_config, save_config, sync_emails, test_connection
-from notify import send_notification
-from recurrence import calculate_next_due_date
+from integrations.email_sync import load_config, save_config, sync_emails, test_connection
+from integrations.notify import send_notification
+from core.recurrence import calculate_next_due_date
 
 app = Flask(__name__)
 init_db()
