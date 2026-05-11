@@ -469,6 +469,8 @@
 
   <div class="tab-bar">
     <button class="tab-btn active" id="tab-all"           onclick="setTab('all')">All Tasks <span class="tab-count" id="cnt-all">0</span></button>
+    <button class="tab-btn"        id="tab-new"           onclick="setTab('new')">🆕 New today <span class="tab-count" id="cnt-new">0</span></button>
+    <button class="tab-btn"        id="tab-urgent"        onclick="setTab('urgent')">🚨 Urgent <span class="tab-count" id="cnt-urgent">0</span></button>
     <button class="tab-btn"        id="tab-meetings"      onclick="setTab('meetings')">📅 Meetings <span class="tab-count" id="cnt-meetings">0</span></button>
     <button class="tab-btn"        id="tab-safety"        onclick="setTab('safety')">🔴 Safety <span class="tab-count" id="cnt-safety">0</span></button>
     <button class="tab-btn"        id="tab-status_report" onclick="setTab('status_report')">📊 Status Reports <span class="tab-count" id="cnt-status_report">0</span></button>
@@ -697,14 +699,41 @@
     renderFilteredTasks();
   }
 
+  const URGENT_KEYWORDS = [
+    'urgente', 'urgent', 'urgência', 'urgencia',
+    'asap', 'imediato', 'imediata', 'immediately',
+    'prioritário', 'prioritario', 'prioridade alta',
+    'critical', 'crítico', 'critico',
+    'atenção urgente', 'atencao urgente',
+  ];
+
+  function isUrgent(t) {
+    if (!getEmailCategory(t.description)) return false;
+    const hay = ((t.title || '') + '\n' + (t.description || '')).toLowerCase();
+    return URGENT_KEYWORDS.some(k => hay.includes(k));
+  }
+
+  function isNewToday(t) {
+    if (!getEmailCategory(t.description)) return false;
+    const ts = t.created_at;
+    if (!ts) return false;
+    const d = new Date(ts);
+    const now = new Date();
+    return d.getFullYear() === now.getFullYear()
+        && d.getMonth() === now.getMonth()
+        && d.getDate() === now.getDate();
+  }
+
   function updateTabCounts() {
-    const counts = { all: _allTasks.length, meetings: 0, safety: 0, status_report: 0, payment: 0 };
+    const counts = { all: _allTasks.length, new: 0, urgent: 0, meetings: 0, safety: 0, status_report: 0, payment: 0 };
     for (const t of _allTasks) {
       const cat = getEmailCategory(t.description);
       if (cat === 'safety')             counts.safety++;
       else if (cat === 'status_report') counts.status_report++;
       else if (cat === 'meeting')       counts.meetings++;
       else if (cat === 'payment')       counts.payment++;
+      if (isNewToday(t)) counts.new++;
+      if (isUrgent(t))   counts.urgent++;
     }
     for (const [key, n] of Object.entries(counts)) {
       const el = document.getElementById('cnt-' + key);
@@ -824,6 +853,10 @@
     let tasks;
     if (_activeTab === 'all') {
       tasks = _allTasks;
+    } else if (_activeTab === 'new') {
+      tasks = _allTasks.filter(isNewToday);
+    } else if (_activeTab === 'urgent') {
+      tasks = _allTasks.filter(isUrgent);
     } else if (_activeTab === 'meetings') {
       tasks = _allTasks.filter(t => getEmailCategory(t.description) === 'meeting');
     } else {

@@ -2,7 +2,9 @@ import email
 import imaplib
 import json
 import os
+import re
 import urllib.parse
+from datetime import date, datetime
 from email.header import decode_header
 from typing import Optional
 
@@ -126,6 +128,92 @@ def _decode_header_str(raw: str) -> str:
     return "".join(out)
 
 
+DUE_KEYWORDS = [
+    "vencimento", "data de vencimento", "vence em", "vence no", "vence:", "vence ",
+    "pagar até", "pague até", "pagamento até", "prazo de pagamento", "prazo:",
+    "expira em", "expira:", "expira no",
+    "due date", "due by", "due on", "due:",
+    "payment due", "pay by",
+]
+
+DATE_PATTERNS = [
+    # yyyy-mm-dd (most specific — must come before dm)
+    (re.compile(r"\b(20\d{2})-([01]?\d)-([0-3]?\d)\b"),           "ymd"),
+    # dd/mm/yyyy or dd-mm-yyyy or dd.mm.yyyy
+    (re.compile(r"(\b[0-3]?\d)[/.\-]([01]?\d)[/.\-](20\d{2})\b"), "dmy"),
+    # mm/yyyy — interpreted as last day of that month
+    (re.compile(r"(\b[01]?\d)[/.\-](20\d{2})\b"),                 "my"),
+    # dd/mm (no year)
+    (re.compile(r"(\b[0-3]?\d)[/.\-]([01]?\d)\b(?!\d)"),          "dm"),
+]
+
+
+def _last_day(year: int, month: int) -> int:
+    if month == 12:
+        nxt = date(year + 1, 1, 1)
+    else:
+        nxt = date(year, month + 1, 1)
+    return (nxt - date(year, month, 1)).days
+
+
+
+def _parse_due_date(text: str) -> Optional[str]:
+    """
+    Scan text for a payment due date near a Portuguese/English keyword.
+    Returns ISO datetime string (date at 09:00 local) or None.
+    """
+    if not text:
+        return None
+    low = text.lower()
+    today = date.today()
+
+    candidates = []
+    for kw in DUE_KEYWORDS:
+        start = 0
+        while True:
+            i = low.find(kw, start)
+            if i < 0:
+                break
+            # Scan a window around the keyword: 40 chars before + 80 chars after.
+            # This catches formats like "PA 05/2026 - vencimento" where the
+            # date appears immediately before the keyword.
+            w_start = max(0, i - 40)
+            w_end = i + len(kw) + 80
+            window = low[w_start:w_end]
+            for rx, kind in DATE_PATTERNS:
+                m = rx.search(window)
+                if not m:
+                    continue
+                try:
+                    if kind == "dmy":
+                        d = date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+                    elif kind == "ymd":
+                        d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+                    elif kind == "my":  # mm/yyyy → last day of that month
+                        mm, yy = int(m.group(1)), int(m.group(2))
+                        d = date(yy, mm, _last_day(yy, mm))
+                    else:  # "dm" — assume current year, roll to next only if clearly past
+                        dd, mm = int(m.group(1)), int(m.group(2))
+                        d = date(today.year, mm, dd)
+                        if (today - d).days > 30:
+                            d = date(today.year + 1, mm, dd)
+                except ValueError:
+                    continue
+                delta = (d - today).days
+                if delta < -180 or delta > 730:
+                    continue
+                candidates.append(d)
+                break  # first matching pattern in this window wins
+            start = i + len(kw)
+
+    if not candidates:
+        return None
+    # Prefer the earliest future date; if all are past, take the latest past one.
+    future = sorted([c for c in candidates if c >= today])
+    chosen = future[0] if future else sorted(candidates)[-1]
+    return datetime(chosen.year, chosen.month, chosen.day, 9, 0, 0).isoformat(sep=" ")
+
+
 def _extract_body(msg: email.message.Message, max_chars: int = 400) -> str:
     if msg.is_multipart():
         for part in msg.walk():
@@ -178,7 +266,6 @@ def sync_emails(rescan: bool = False) -> dict:
 
             subject = _decode_header_str(msg.get("Subject", "(no subject)"))
             sender  = _decode_header_str(msg.get("From", ""))
-            body    = _extract_body(msg)
 
             if _is_noreply(sender):
                 if msg_id:
@@ -192,6 +279,16 @@ def sync_emails(rescan: bool = False) -> dict:
                 continue  # discard uncategorised email
 
             cat_key, cat_emoji, priority = cat
+
+            # Payment emails: scan a larger body slice for a due date.
+            scan_chars = 4000 if cat_key == "payment" else 400
+            body_full = _extract_body(msg, max_chars=scan_chars)
+            body = body_full[:400]
+
+            due_at = None
+            if cat_key == "payment":
+                due_at = _parse_due_date(subject + "\n" + body_full)
+
             title = f"📧 {cat_emoji} {subject[:80]}"
             desc_lines = [f"[email-category:{cat_key}]"]
             if msg_id:
@@ -206,6 +303,7 @@ def sync_emails(rescan: bool = False) -> dict:
                 title=title,
                 description="\n".join(desc_lines),
                 priority=priority,
+                due_at=due_at,
             )
             imported += 1
 
