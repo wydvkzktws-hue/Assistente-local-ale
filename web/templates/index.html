@@ -790,6 +790,10 @@
         } else if (data.type === 'daily_checkin') {
           openCheckin(data.overdue_tasks || []);
           showDesktopNotif('Daily Check-in', 'Time to plan your day!');
+        } else if (data.type === 'urgent_email') {
+          showDesktopNotif('🚨 Urgent email: ' + data.title, data.body || '');
+          toast('🚨 Urgent email: ' + data.title);
+          loadTasks();
         } else if (data.type === 'email_sync') {
           const n = data.imported;
           if (n > 0) {

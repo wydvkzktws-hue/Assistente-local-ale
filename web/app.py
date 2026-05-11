@@ -62,6 +62,13 @@ def _run_email_sync() -> None:
         n = result["imported"]
         _push_to_clients({"type": "email_sync", "imported": n})
         send_notification("New email tasks", f"{n} unread email{'s' if n > 1 else ''} added as task{'s' if n > 1 else ''}.", 0)
+    for u in result.get("urgent") or []:
+        _push_to_clients({
+            "type": "urgent_email",
+            "id": u["task_id"],
+            "title": u["subject"],
+            "body": f"From: {u['sender']}",
+        })
 
 
 def _fire_daily_checkin() -> None:

@@ -9,6 +9,7 @@ from email.header import decode_header
 from typing import Optional
 
 from core.db import create_task
+from integrations.notify import send_notification
 
 DATA_DIR = os.path.expanduser("~/.assistant")
 CONFIG_PATH = os.path.join(DATA_DIR, "email_config.json")
@@ -256,6 +257,7 @@ def sync_emails(rescan: bool = False) -> dict:
 
     seen = _load_seen()
     imported = 0
+    urgent_items: list = []  # [{'task_id': int, 'subject': str, 'sender': str}, ...]
 
     try:
         host = cfg.get("imap_host", "imap.gmail.com")
@@ -300,7 +302,8 @@ def sync_emails(rescan: bool = False) -> dict:
             body_full = _extract_body(msg, max_chars=scan_chars)
             body = body_full[:400]
 
-            if _is_urgent(subject + "\n" + body_full):
+            is_urgent_msg = _is_urgent(subject + "\n" + body_full)
+            if is_urgent_msg:
                 priority = "high"
 
             due_at = None
@@ -317,7 +320,7 @@ def sync_emails(rescan: bool = False) -> dict:
                 desc_lines.append("")
                 desc_lines.append(body)
 
-            create_task(
+            task_id = create_task(
                 title=title,
                 description="\n".join(desc_lines),
                 priority=priority,
@@ -325,12 +328,28 @@ def sync_emails(rescan: bool = False) -> dict:
             )
             imported += 1
 
+            if is_urgent_msg and not rescan:
+                urgent_items.append({
+                    "task_id": task_id,
+                    "subject": subject[:80],
+                    "sender": sender,
+                })
+                # Fire a desktop notification right away for urgent emails.
+                try:
+                    send_notification(
+                        title=f"🚨 Urgent email: {subject[:60]}",
+                        body=f"From: {sender}",
+                        task_id=task_id,
+                    )
+                except Exception:
+                    pass  # never let a notification failure abort the sync
+
             if msg_id:
                 seen.add(msg_id)
 
         mail.logout()
         _save_seen(seen)
-        return {"imported": imported, "error": None}
+        return {"imported": imported, "urgent": urgent_items, "error": None}
 
     except imaplib.IMAP4.error as exc:
         return {"imported": 0, "error": f"IMAP auth error: {exc}"}
