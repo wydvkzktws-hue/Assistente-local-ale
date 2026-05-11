@@ -17,6 +17,20 @@ MAX_SEEN = 2000  # cap so the file doesn't grow forever
 
 # ── Email categories ──────────────────────────────────────────────────────────
 
+URGENT_KEYWORDS = [
+    "urgente", "urgent", "urgência", "urgencia",
+    "asap", "imediato", "imediata", "immediately",
+    "prioritário", "prioritario", "prioridade alta",
+    "critical", "crítico", "critico",
+    "atenção urgente", "atencao urgente",
+]
+
+
+def _is_urgent(text: str) -> bool:
+    low = (text or "").lower()
+    return any(k in low for k in URGENT_KEYWORDS)
+
+
 NO_REPLY_PATTERNS = [
     "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
     "do_not_reply", "notifications@", "mailer-daemon", "automated@",
@@ -280,10 +294,14 @@ def sync_emails(rescan: bool = False) -> dict:
 
             cat_key, cat_emoji, priority = cat
 
-            # Payment emails: scan a larger body slice for a due date.
-            scan_chars = 4000 if cat_key == "payment" else 400
+            # Scan a larger body slice when we need to look for due dates
+            # or urgent markers anywhere in the message.
+            scan_chars = 4000 if cat_key == "payment" else 1000
             body_full = _extract_body(msg, max_chars=scan_chars)
             body = body_full[:400]
+
+            if _is_urgent(subject + "\n" + body_full):
+                priority = "high"
 
             due_at = None
             if cat_key == "payment":
