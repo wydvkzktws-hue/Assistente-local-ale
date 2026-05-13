@@ -4,478 +4,858 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Personal Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* ── Tokens ─────────────────────────────────────────────────── */
+    :root {
+      --bg:           #FAFAF9;
+      --surface:      #FFFFFF;
+      --surface-2:    #F4F4F3;
+      --surface-3:    #EDEDEB;
+      --border:       #E5E5E3;
+      --border-strong:#D4D4D1;
+      --text:         #0E1116;
+      --text-2:       #4B5563;
+      --text-3:       #8A8F98;
+      --text-4:       #B5B9BF;
+
+      --accent:       #0D9488;      /* teal 600 */
+      --accent-2:     #0F766E;      /* teal 700 */
+      --accent-soft:  #CCFBF1;      /* teal 100 */
+
+      --danger:       #DC2626;
+      --danger-soft:  #FEE2E2;
+      --warn:         #D97706;
+      --warn-soft:    #FEF3C7;
+      --success:      #059669;
+      --success-soft: #D1FAE5;
+      --info:         #2563EB;
+      --info-soft:    #DBEAFE;
+      --violet:       #7C3AED;
+      --violet-soft:  #EDE9FE;
+
+      --font:         'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --mono:         'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+      --r-xs: 4px;
+      --r-sm: 6px;
+      --r-md: 8px;
+      --r-lg: 12px;
+
+      --shadow-sm: 0 1px 2px rgba(15,18,23,0.04), 0 1px 1px rgba(15,18,23,0.03);
+      --shadow-md: 0 4px 16px -6px rgba(15,18,23,0.10), 0 2px 6px -2px rgba(15,18,23,0.06);
+      --shadow-lg: 0 24px 56px -16px rgba(15,18,23,0.18), 0 8px 16px -8px rgba(15,18,23,0.08);
+
+      --ease:       cubic-bezier(.2, .8, .2, 1);
+      --max:        min(1200px, 96vw);
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html { font-size: 15px; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f2f5;
-      color: #1e1e2e;
+      font-family: var(--font);
+      font-feature-settings: "ss01", "cv11", "tnum";
+      color: var(--text);
+      background: var(--bg);
       min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.005em;
     }
 
-    header {
-      background: #1e1e2e;
-      color: #cdd6f4;
-      padding: 1rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; }
+
+    ::selection { background: var(--accent-soft); color: var(--accent-2); }
+
+    /* ── Topbar ─────────────────────────────────────────────────── */
+    header.topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(250,250,249,0.85);
+      backdrop-filter: saturate(180%) blur(10px);
+      -webkit-backdrop-filter: saturate(180%) blur(10px);
+      border-bottom: 1px solid var(--border);
     }
-    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
-    #stream-status { font-size: 0.78rem; opacity: 0.65; }
-
-    .container { max-width: 860px; margin: 2rem auto; padding: 0 1.25rem; transition: max-width 0.2s; }
-    .container.wide { max-width: 1320px; }
-
-    .notif-banner {
-      background: #fffbeb; border: 1px solid #fbbf24; border-radius: 10px;
-      padding: 0.75rem 1.1rem; margin-bottom: 1.5rem;
+    .topbar-inner {
+      width: var(--max); margin: 0 auto;
       display: flex; align-items: center; justify-content: space-between;
-      font-size: 0.875rem; gap: 1rem;
+      padding: 0.85rem 0;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-weight: 700; font-size: 0.95rem;
+      letter-spacing: -0.01em;
+    }
+    .brand-mark {
+      width: 26px; height: 26px;
+      border-radius: var(--r-sm);
+      background: var(--text);
+      color: var(--bg);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-weight: 500; font-size: 0.78rem;
+      letter-spacing: -0.02em;
+    }
+    .brand-sub {
+      color: var(--text-3);
+      font-weight: 500;
+      font-size: 0.78rem;
+      padding-left: 0.6rem;
+      margin-left: 0.2rem;
+      border-left: 1px solid var(--border);
+    }
+
+    .topbar-right {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-3);
+    }
+    .live-pill {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.22rem 0.55rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text-2);
+    }
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(13,148,136,0.45);
+      animation: pulse 2.4s ease-out infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(13,148,136,0.45); }
+      70%  { box-shadow: 0 0 0 7px rgba(13,148,136,0); }
+      100% { box-shadow: 0 0 0 0 rgba(13,148,136,0); }
+    }
+
+    /* ── Notif banner ───────────────────────────────────────────── */
+    .notif-banner {
+      width: var(--max); margin: 1rem auto 0;
+      display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+      padding: 0.75rem 1rem;
+      background: var(--accent-soft);
+      border: 1px solid #99F6E4;
+      color: var(--accent-2);
+      border-radius: var(--r-md);
+      font-size: 0.85rem;
     }
     .notif-banner.hidden { display: none; }
 
+    /* ── Container ──────────────────────────────────────────────── */
+    .container {
+      width: var(--max); margin: 1.4rem auto 4rem;
+    }
+    .container.wide { width: min(1480px, 98vw); }
+
+    /* ── Toolbar ────────────────────────────────────────────────── */
     .toolbar {
-      display: flex; gap: 0.6rem; margin-bottom: 1.25rem;
-      align-items: center; flex-wrap: wrap;
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 0.5rem;
+      padding-bottom: 0.85rem;
     }
+    .toolbar-grow { flex: 1; }
 
+    /* ── Buttons ────────────────────────────────────────────────── */
     .btn {
-      padding: 0.5rem 1rem; border: none; border-radius: 7px;
-      cursor: pointer; font-size: 0.875rem; font-weight: 500;
-      transition: filter 0.12s, transform 0.08s; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      font-size: 0.85rem; font-weight: 600;
+      padding: 0.46rem 0.85rem;
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      letter-spacing: -0.005em;
+      transition: background 0.14s var(--ease),
+                  border-color 0.14s var(--ease),
+                  color 0.14s var(--ease),
+                  transform 0.06s var(--ease),
+                  box-shadow 0.14s var(--ease);
+      box-shadow: var(--shadow-sm);
     }
-    .btn:hover { filter: brightness(1.08); }
-    .btn:active { transform: scale(0.97); }
-    .btn-primary  { background: #7c3aed; color: #fff; }
-    .btn-checkin  { background: #0ea5e9; color: #fff; }
-    .btn-success  { background: #16a34a; color: #fff; }
-    .btn-warning  { background: #d97706; color: #fff; }
-    .btn-danger   { background: #dc2626; color: #fff; }
-    .btn-ghost    { background: #e4e4e7; color: #333; }
-    .btn-sm       { padding: 0.28rem 0.65rem; font-size: 0.78rem; border-radius: 5px; }
+    .btn:hover { background: var(--surface-2); border-color: #BFBFBC; }
+    .btn:active { transform: translateY(1px); box-shadow: none; }
 
-    select, input, textarea {
-      padding: 0.45rem 0.75rem; border: 1px solid #d1d5db;
-      border-radius: 7px; font-size: 0.875rem; background: #fff;
-      outline: none; transition: border-color 0.15s;
+    .btn-primary {
+      background: var(--text); color: var(--bg); border-color: var(--text);
     }
-    select:focus, input:focus, textarea:focus { border-color: #7c3aed; }
+    .btn-primary:hover { background: #232a35; border-color: #232a35; }
 
-    .tasks-grid { display: flex; flex-direction: column; gap: 0.7rem; }
-
-    .task-card {
-      background: #fff; border-radius: 10px;
-      padding: 1rem 1.25rem; border-left: 5px solid #e5e7eb;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-      display: flex; align-items: flex-start; gap: 1rem;
-      transition: box-shadow 0.15s;
+    .btn-accent {
+      background: var(--accent); color: #fff; border-color: var(--accent);
     }
-    .task-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.11); }
-    .task-card.high   { border-left-color: #dc2626; }
-    .task-card.medium { border-left-color: #d97706; }
-    .task-card.low    { border-left-color: #16a34a; }
-    .task-card.done   { opacity: 0.55; }
+    .btn-accent:hover { background: var(--accent-2); border-color: var(--accent-2); }
 
-    .task-info { flex: 1; min-width: 0; }
-    .task-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem; }
-    .task-title.strikethrough { text-decoration: line-through; color: #9ca3af; }
-    .task-meta {
-      font-size: 0.79rem; color: #6b7280;
-      display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;
+    .btn-quiet {
+      background: transparent; border-color: transparent;
+      color: var(--text-2);
+      box-shadow: none;
     }
+    .btn-quiet:hover { background: var(--surface-2); color: var(--text); }
 
-    .badge {
-      display: inline-flex; align-items: center;
-      padding: 0.15rem 0.55rem; border-radius: 99px;
-      font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    .btn-ghost {
+      background: var(--surface);
+      border-color: var(--border);
+      color: var(--text-2);
     }
-    .badge-high    { background: #fee2e2; color: #b91c1c; }
-    .badge-medium  { background: #fef3c7; color: #b45309; }
-    .badge-low     { background: #d1fae5; color: #15803d; }
-    .badge-pending { background: #ede9fe; color: #6d28d9; }
-    .badge-done    { background: #f3f4f6; color: #6b7280; }
-    .badge-snoozed { background: #fff7ed; color: #c2410c; }
+    .btn-ghost:hover { background: var(--surface-2); color: var(--text); border-color: var(--border-strong); }
 
-    .badge-safety        { background: #fee2e2; color: #b91c1c; }
-    .badge-status_report { background: #e0f2fe; color: #0369a1; }
-    .badge-meeting       { background: #fef9c3; color: #92400e; }
-    .badge-payment       { background: #f0fdf4; color: #15803d; }
-
-    .task-actions {
-      display: flex; gap: 0.35rem; align-items: flex-start;
-      flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end;
+    /* Inputs / selects */
+    select, input[type="text"], input[type="email"], input[type="password"],
+    input[type="datetime-local"], textarea {
+      font-family: var(--font);
+      font-size: 0.88rem;
+      padding: 0.46rem 0.7rem;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-md);
+      outline: none;
+      transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease);
     }
-
-    .empty-state { text-align: center; padding: 4rem 1rem; color: #9ca3af; }
-    .empty-state .icon { font-size: 3rem; margin-bottom: 0.75rem; }
-    .empty-state p { font-size: 0.95rem; }
-
-    /* ── Modals ── */
-    .modal-backdrop {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55); z-index: 200;
-      align-items: center; justify-content: center; padding: 1rem;
+    select:focus, input:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(13,148,136,0.18);
     }
-    .modal-backdrop.open { display: flex; }
+    select { padding-right: 1.8rem; cursor: pointer; }
 
-    .modal {
-      background: #fff; border-radius: 14px;
-      padding: 1.5rem; width: 100%; max-width: 480px;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.25);
-      animation: slideUp 0.18s ease;
-      max-height: 90vh; overflow-y: auto;
-    }
-    /* Wider modal for check-in */
-    .modal.wide { max-width: 600px; }
-
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .modal h2 { margin-bottom: 1.25rem; font-size: 1.1rem; font-weight: 700; }
-    .modal h3 { font-size: 0.9rem; font-weight: 700; color: #374151; margin-bottom: 0.75rem; }
-
-    .form-group { margin-bottom: 1rem; }
-    .form-group label { display: block; font-size: 0.83rem; font-weight: 600; margin-bottom: 0.35rem; color: #374151; }
-    .form-group input, .form-group select, .form-group textarea { width: 100%; }
-    .form-group textarea { resize: vertical; min-height: 72px; font-family: inherit; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem; }
-
-    /* ── Check-in modal specifics ── */
-    .checkin-section {
-      margin-bottom: 1.5rem;
-      padding-bottom: 1.25rem;
-      border-bottom: 1px solid #f3f4f6;
-    }
-    .checkin-section:last-child { border-bottom: none; margin-bottom: 0; }
-
-    .overdue-item {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.65rem 0.85rem; border-radius: 8px;
-      background: #fef2f2; border: 1px solid #fecaca;
-      margin-bottom: 0.5rem;
-    }
-    .overdue-item .overdue-title { flex: 1; font-size: 0.875rem; font-weight: 500; }
-    .overdue-item .overdue-meta { font-size: 0.75rem; color: #9ca3af; }
-    .overdue-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: #16a34a; cursor: pointer; flex-shrink: 0; }
-
-    .today-task-row {
-      display: flex; gap: 0.5rem; align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    .today-task-row input[type="text"] { flex: 1; }
-    .today-task-row select { width: 100px; flex-shrink: 0; }
-    .today-task-row .remove-row { background: none; border: none; cursor: pointer; color: #dc2626; font-size: 1.1rem; padding: 0 4px; }
-
-    .add-row-btn {
-      background: none; border: 1px dashed #d1d5db; border-radius: 7px;
-      width: 100%; padding: 0.45rem; font-size: 0.83rem; color: #6b7280;
-      cursor: pointer; transition: background 0.12s;
-    }
-    .add-row-btn:hover { background: #f9fafb; color: #374151; }
-
-    /* ── Email status pill ── */
+    /* Email pill */
     #email-pill {
-      font-size: 0.78rem; padding: 0.3rem 0.75rem;
-      border-radius: 99px; border: 1px solid #e5e7eb;
-      background: #f9fafb; cursor: pointer;
-      transition: background 0.12s; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      font-size: 0.78rem; font-weight: 500;
+      padding: 0.36rem 0.7rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      cursor: pointer;
+      border-radius: var(--r-md);
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.14s var(--ease), color 0.14s var(--ease);
     }
-    #email-pill:hover { background: #f3f4f6; }
-    #email-pill.ok    { border-color: #86efac; background: #f0fdf4; color: #15803d; }
-    #email-pill.error { border-color: #fca5a5; background: #fef2f2; color: #b91c1c; }
+    #email-pill:hover { border-color: var(--border-strong); color: var(--text); }
+    #email-pill::before {
+      content: ""; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-4);
+    }
+    #email-pill.ok { color: var(--accent-2); border-color: #99F6E4; background: #F0FDFA; }
+    #email-pill.ok::before { background: var(--accent); }
+    #email-pill.error { color: var(--danger); border-color: #FCA5A5; background: #FEF2F2; }
+    #email-pill.error::before { background: var(--danger); }
 
-    /* ── Email modal specifics ── */
-    .email-step { font-size: 0.82rem; color: #6b7280; margin-bottom: 1rem; line-height: 1.6; }
-    .email-step a { color: #7c3aed; }
-    .email-step code {
-      background: #f3f4f6; padding: 0.1rem 0.4rem;
-      border-radius: 4px; font-size: 0.8rem;
+    /* View toggle */
+    .view-toggle {
+      display: inline-flex;
+      background: var(--surface-2);
+      padding: 3px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
     }
-    .sync-result {
-      margin-top: 0.75rem; padding: 0.65rem 0.9rem;
-      border-radius: 8px; font-size: 0.85rem;
+    .view-btn {
+      background: transparent; border: none; cursor: pointer;
+      padding: 0.32rem 0.7rem;
+      font-size: 0.78rem; font-weight: 500;
+      color: var(--text-2);
+      border-radius: var(--r-sm);
+      transition: background 0.14s var(--ease), color 0.14s var(--ease), box-shadow 0.14s var(--ease);
     }
-    .sync-result.success { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
-    .sync-result.error   { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
-    .sync-result.hidden  { display: none; }
+    .view-btn.active {
+      background: var(--surface); color: var(--text);
+      box-shadow: var(--shadow-sm);
+    }
 
-    /* ── Tabs ── */
-    .tab-bar {
-      display: flex; gap: 0; margin-bottom: 1.25rem;
-      border-bottom: 2px solid #e5e7eb;
+    /* ── Tabs ───────────────────────────────────────────────────── */
+    .tabs {
+      display: flex; flex-wrap: wrap; gap: 0.25rem;
+      padding: 0.3rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.6rem;
     }
     .tab-btn {
       background: none; border: none; cursor: pointer;
-      padding: 0.6rem 1.1rem; font-size: 0.875rem; font-weight: 500;
-      color: #6b7280; border-bottom: 3px solid transparent;
-      margin-bottom: -2px; transition: color 0.12s, border-color 0.12s;
-      display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+      display: inline-flex; align-items: center; gap: 0.45rem;
+      padding: 0.5rem 0.8rem;
+      font-size: 0.85rem; font-weight: 500;
+      color: var(--text-2);
+      border-radius: var(--r-sm);
+      position: relative;
+      transition: color 0.14s var(--ease), background 0.14s var(--ease);
     }
-    .tab-btn:hover { color: #374151; background: #f9fafb; border-radius: 6px 6px 0 0; }
-    .tab-btn.active { color: #7c3aed; border-bottom-color: #7c3aed; font-weight: 700; }
+    .tab-btn:hover { color: var(--text); background: var(--surface-2); }
+    .tab-btn.active { color: var(--text); font-weight: 600; }
+    .tab-btn.active::after {
+      content: ""; position: absolute;
+      left: 0.5rem; right: 0.5rem; bottom: -1rem;
+      height: 2px; background: var(--accent);
+      border-radius: 2px 2px 0 0;
+    }
     .tab-count {
-      background: #e5e7eb; color: #374151;
-      font-size: 0.68rem; font-weight: 700;
-      padding: 0.1rem 0.45rem; border-radius: 99px; min-width: 1.4rem;
-      text-align: center;
+      font-family: var(--mono);
+      font-size: 0.7rem; font-weight: 500;
+      padding: 0.05rem 0.4rem;
+      background: var(--surface-2);
+      color: var(--text-3);
+      border-radius: 999px;
+      min-width: 1.4rem; text-align: center;
     }
-    .tab-btn.active .tab-count { background: #ede9fe; color: #6d28d9; }
-
-    /* ── View toggle ── */
-    .view-toggle {
-      display: inline-flex; background: #e4e4e7;
-      border-radius: 8px; padding: 3px; margin-left: auto;
-    }
-    .view-btn {
-      background: none; border: none; cursor: pointer;
-      padding: 0.35rem 0.8rem; font-size: 0.82rem; font-weight: 500;
-      color: #6b7280; border-radius: 6px;
-      transition: background 0.12s, color 0.12s;
-    }
-    .view-btn.active {
-      background: #fff; color: #1e1e2e;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    .tab-btn.active .tab-count {
+      background: var(--accent-soft); color: var(--accent-2);
     }
 
-    /* ── Kanban ── */
-    .kanban-board {
+    /* ── Task list ──────────────────────────────────────────────── */
+    .tasks-grid {
+      display: flex; flex-direction: column;
+      gap: 0.5rem;
+      padding-top: 0.6rem;
+    }
+
+    .task-card {
       display: grid;
-      grid-template-columns: repeat(4, minmax(240px, 1fr));
+      grid-template-columns: 1.1rem 1fr auto;
       gap: 0.85rem;
-      overflow-x: auto;
-      padding-bottom: 0.5rem;
-      align-items: start;
+      padding: 0.9rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease), transform 0.06s var(--ease);
     }
+    .task-card:hover {
+      border-color: var(--border-strong);
+      box-shadow: var(--shadow-md);
+    }
+    .task-card.done { background: var(--surface-2); }
+    .task-card.done .task-title { color: var(--text-3); }
 
-    .kanban-column {
-      background: #f3f4f6; border-radius: 12px;
-      padding: 0.85rem; min-width: 240px;
-      display: flex; flex-direction: column; gap: 0.55rem;
-      min-height: 220px;
-      transition: background 0.12s, outline 0.12s;
+    .task-card .prio {
+      display: flex; align-items: flex-start; justify-content: center;
+      padding-top: 0.42rem;
     }
-    .kanban-column.drop-target {
-      background: #ede9fe;
-      outline: 2px dashed #7c3aed; outline-offset: -3px;
-    }
-    .kanban-column.no-drop { cursor: not-allowed; }
-
-    .kanban-column-header {
-      display: flex; align-items: center; justify-content: space-between;
-      font-size: 0.85rem; font-weight: 700; color: #374151;
-      padding: 0 0.15rem 0.55rem;
-      border-bottom: 2px solid #e5e7eb; margin-bottom: 0.15rem;
-    }
-    .kanban-column[data-col="todo"]    .kanban-column-header { color: #1d4ed8; }
-    .kanban-column[data-col="overdue"] .kanban-column-header { color: #b91c1c; }
-    .kanban-column[data-col="snoozed"] .kanban-column-header { color: #c2410c; }
-    .kanban-column[data-col="done"]    .kanban-column-header { color: #15803d; }
-
-    .col-count {
-      background: #d1d5db; color: #1f2937;
-      font-size: 0.68rem; font-weight: 700;
-      padding: 0.1rem 0.5rem; border-radius: 99px; min-width: 1.4rem; text-align: center;
-    }
-    .kanban-column[data-col="todo"]    .col-count { background: #dbeafe; color: #1d4ed8; }
-    .kanban-column[data-col="overdue"] .col-count { background: #fee2e2; color: #b91c1c; }
-    .kanban-column[data-col="snoozed"] .col-count { background: #ffedd5; color: #c2410c; }
-    .kanban-column[data-col="done"]    .col-count { background: #d1fae5; color: #15803d; }
-
-    .kanban-column-empty {
-      text-align: center; font-size: 0.75rem; color: #9ca3af;
-      padding: 1.5rem 0.5rem; border: 1px dashed #d1d5db; border-radius: 8px;
-    }
-
-    .kanban-card {
-      background: #fff; border-radius: 9px;
-      padding: 0.7rem 0.8rem; border-left: 4px solid #e5e7eb;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
-      cursor: grab; user-select: none;
-      transition: box-shadow 0.12s, transform 0.08s;
-    }
-    .kanban-card:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.11); }
-    .kanban-card:active { cursor: grabbing; }
-    .kanban-card.dragging { opacity: 0.45; transform: rotate(-1deg); }
-
-    .kanban-card.high   { border-left-color: #dc2626; }
-    .kanban-card.medium { border-left-color: #d97706; }
-    .kanban-card.low    { border-left-color: #16a34a; }
-    .kanban-card.done   { opacity: 0.65; }
-
-    .kanban-card-title {
-      font-size: 0.86rem; font-weight: 600;
-      margin-bottom: 0.4rem; line-height: 1.3;
-      word-break: break-word;
-    }
-    .kanban-card.done .kanban-card-title { text-decoration: line-through; color: #6b7280; }
-
-    .kanban-card-meta {
-      display: flex; flex-wrap: wrap; gap: 0.3rem 0.45rem;
-      font-size: 0.72rem; color: #6b7280;
-      margin-bottom: 0.5rem; align-items: center;
-    }
-
-    .kanban-card-actions {
-      display: flex; gap: 0.25rem; flex-wrap: wrap;
-    }
-    .kanban-card-actions .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.72rem; }
-
-    @media (max-width: 720px) {
-      .kanban-board { grid-template-columns: repeat(4, 78vw); }
-    }
-
-    /* ── Toast ── */
-    /* ── Email sender groups ── */
-    .email-group {
-      background: #fff; border-radius: 10px;
-      border-left: 5px solid #93c5fd;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-      overflow: hidden;
-    }
-    .email-group-header {
-      display: flex; align-items: center; gap: 0.75rem;
-      padding: 0.85rem 1.1rem; cursor: pointer;
-      user-select: none; transition: background 0.12s;
-    }
-    .email-group-header:hover { background: #f9fafb; }
-    .email-group-chevron {
-      font-size: 0.8rem; color: #6b7280; width: 1rem;
-      transition: transform 0.15s;
-    }
-    .email-group.open .email-group-chevron { transform: rotate(90deg); }
-    .email-group-sender { font-weight: 600; font-size: 0.92rem; color: #1e1e2e; min-width: 0; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .email-group-count {
-      background: #dbeafe; color: #1d4ed8;
-      font-size: 0.7rem; font-weight: 700;
-      padding: 0.1rem 0.5rem; border-radius: 99px;
+    .task-card .prio::before {
+      content: "";
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-4);
       flex-shrink: 0;
     }
+    .task-card.high   .prio::before { background: var(--danger); }
+    .task-card.medium .prio::before { background: var(--warn); }
+    .task-card.low    .prio::before { background: var(--success); }
+    .task-card.done   .prio::before { background: var(--text-4); }
+
+    .task-info { min-width: 0; }
+    .task-title {
+      font-size: 0.95rem; font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      margin-bottom: 0.3rem;
+      line-height: 1.35;
+    }
+    .task-title a:hover { color: var(--accent-2); }
+    .task-title.strikethrough { text-decoration: line-through; text-decoration-color: var(--text-4); }
+
+    .task-meta {
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--text-3);
+    }
+    .meta-chip {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.1rem 0.5rem;
+      background: var(--surface-2);
+      border-radius: var(--r-xs);
+      color: var(--text-2);
+      font-weight: 500;
+      font-size: 0.74rem;
+      line-height: 1.5;
+    }
+    .meta-chip .ico { color: var(--text-3); }
+
+    .meta-chip.due           { font-variant-numeric: tabular-nums; }
+    .meta-chip.due.overdue   { background: var(--danger-soft); color: var(--danger); }
+    .meta-chip.status-done    { background: var(--success-soft); color: var(--success); }
+    .meta-chip.status-snoozed { background: var(--warn-soft); color: var(--warn); }
+
+    .meta-chip.cat-safety        { background: var(--danger-soft); color: var(--danger); }
+    .meta-chip.cat-payment       { background: var(--success-soft); color: var(--success); }
+    .meta-chip.cat-meeting       { background: var(--info-soft); color: var(--info); }
+    .meta-chip.cat-status_report { background: var(--violet-soft); color: var(--violet); }
+
+    .task-actions {
+      display: flex; align-items: center; gap: 0.15rem;
+      flex-shrink: 0;
+    }
+    .ico-btn {
+      width: 30px; height: 30px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-3);
+      cursor: pointer;
+      border-radius: var(--r-sm);
+      font-size: 0.95rem;
+      transition: background 0.14s var(--ease), color 0.14s var(--ease), border-color 0.14s var(--ease);
+    }
+    .ico-btn:hover { background: var(--surface-2); color: var(--text); }
+    .ico-btn.success:hover { color: var(--success); background: var(--success-soft); }
+    .ico-btn.warn:hover    { color: var(--warn);    background: var(--warn-soft); }
+    .ico-btn.danger:hover  { color: var(--danger);  background: var(--danger-soft); }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 5rem 1rem;
+      color: var(--text-3);
+    }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; }
+    .empty-state p { font-size: 0.9rem; }
+
+    /* ── Email groups ───────────────────────────────────────────── */
+    .email-group {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      overflow: hidden;
+      transition: border-color 0.14s var(--ease), box-shadow 0.14s var(--ease);
+    }
+    .email-group:hover { border-color: var(--border-strong); }
+    .email-group.open  { box-shadow: var(--shadow-sm); }
+
+    .email-group-header {
+      display: grid;
+      grid-template-columns: 1.2rem 1fr auto auto;
+      gap: 0.85rem;
+      align-items: center;
+      padding: 0.85rem 1rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.14s var(--ease);
+    }
+    .email-group-header:hover { background: var(--surface-2); }
+
+    .email-group-chevron {
+      color: var(--text-3);
+      transition: transform 0.2s var(--ease);
+      display: inline-block;
+      font-size: 0.85rem;
+      line-height: 1;
+    }
+    .email-group.open .email-group-chevron { transform: rotate(90deg); color: var(--accent); }
+
+    .email-group-sender {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--text);
+      letter-spacing: -0.005em;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      display: flex; align-items: center; gap: 0.55rem;
+    }
+    .email-group-sender::before {
+      content: "✉";
+      color: var(--text-3); font-size: 0.85rem;
+    }
+    .email-group-count {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      padding: 0.12rem 0.5rem;
+      background: var(--accent-soft);
+      color: var(--accent-2);
+      border-radius: 999px;
+      font-weight: 500;
+    }
     .email-group-preview {
-      font-size: 0.78rem; color: #6b7280;
-      flex: 1; min-width: 0; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap;
-      text-align: right;
+      font-size: 0.77rem;
+      color: var(--text-3);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      max-width: 28rem;
     }
     .email-group-body {
       max-height: 0; overflow: hidden;
-      transition: max-height 0.25s ease;
-      padding: 0 0.6rem;
+      transition: max-height 0.32s var(--ease);
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
     }
-    .email-group.open .email-group-body {
-      max-height: 4000px;
-      padding: 0.2rem 0.6rem 0.6rem;
-    }
+    .email-group.open .email-group-body { max-height: 9000px; }
     .email-group-body .task-card {
-      border-left-width: 3px;
-      box-shadow: none;
-      margin-top: 0.4rem;
+      border-radius: 0;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+    }
+    .email-group-body .task-card:hover { background: var(--surface); box-shadow: none; }
+    .email-group-body .task-card:last-child { border-bottom: none; }
+
+    /* ── Kanban ─────────────────────────────────────────────────── */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(260px, 1fr));
+      gap: 0.85rem;
+      padding-top: 0.6rem;
+      overflow-x: auto;
+      align-items: start;
+    }
+    .kanban-column {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 0.85rem;
+      display: flex; flex-direction: column; gap: 0.5rem;
+      min-height: 260px;
+      transition: background 0.14s var(--ease), border-color 0.14s var(--ease);
+    }
+    .kanban-column.drop-target {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+    .kanban-column-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 0.55rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.3rem;
+    }
+    .kanban-column-header .col-label {
+      font-size: 0.85rem; font-weight: 600;
+      color: var(--text);
+      display: inline-flex; align-items: center; gap: 0.45rem;
+    }
+    .kanban-column-header .col-label::before {
+      content: ""; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-3);
+    }
+    .kanban-column[data-col="todo"]    .col-label::before { background: var(--info); }
+    .kanban-column[data-col="overdue"] .col-label::before { background: var(--danger); }
+    .kanban-column[data-col="snoozed"] .col-label::before { background: var(--warn); }
+    .kanban-column[data-col="done"]    .col-label::before { background: var(--success); }
+
+    .col-count {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--text-3);
+      padding: 0.05rem 0.5rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
     }
 
-    /* Kanban variant — compact */
+    .kanban-column-empty {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--text-3);
+      padding: 1.4rem 0.5rem;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--r-md);
+    }
+
+    .kanban-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 0.7rem 0.85rem;
+      cursor: grab; user-select: none;
+      box-shadow: var(--shadow-sm);
+      transition: box-shadow 0.14s var(--ease), transform 0.06s var(--ease), border-color 0.14s var(--ease);
+    }
+    .kanban-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow-md); }
+    .kanban-card:active { cursor: grabbing; }
+    .kanban-card.dragging { opacity: 0.5; transform: rotate(-1deg); }
+    .kanban-card.done { opacity: 0.65; }
+
+    .kanban-card-title {
+      display: flex; align-items: flex-start; gap: 0.45rem;
+      font-size: 0.88rem; font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+      line-height: 1.3;
+      letter-spacing: -0.005em;
+    }
+    .kanban-card-title::before {
+      content: "";
+      width: 6px; height: 6px; border-radius: 50%;
+      margin-top: 0.45rem; flex-shrink: 0;
+      background: var(--text-4);
+    }
+    .kanban-card.high   .kanban-card-title::before { background: var(--danger); }
+    .kanban-card.medium .kanban-card-title::before { background: var(--warn); }
+    .kanban-card.low    .kanban-card-title::before { background: var(--success); }
+    .kanban-card.done .kanban-card-title { text-decoration: line-through; color: var(--text-3); }
+
+    .kanban-card-meta {
+      display: flex; flex-wrap: wrap; gap: 0.3rem;
+      font-size: 0.72rem;
+      color: var(--text-3);
+      margin-bottom: 0.55rem;
+    }
+
+    .kanban-card-actions {
+      display: flex; gap: 0.15rem; flex-wrap: wrap;
+    }
+    .kanban-card-actions .ico-btn { width: 26px; height: 26px; font-size: 0.85rem; }
+
+    /* Kanban email group cluster */
     .kanban-group {
-      background: #fff; border-radius: 9px;
-      border-left: 4px solid #93c5fd;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
       overflow: hidden;
     }
     .kanban-group-header {
-      display: flex; align-items: center; gap: 0.45rem;
-      padding: 0.55rem 0.7rem; cursor: pointer;
-      user-select: none; transition: background 0.12s;
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.55rem 0.7rem;
+      cursor: pointer; user-select: none;
+      transition: background 0.14s var(--ease);
     }
-    .kanban-group-header:hover { background: #f9fafb; }
+    .kanban-group-header:hover { background: var(--surface-2); }
     .kanban-group-chevron {
-      font-size: 0.72rem; color: #6b7280;
-      transition: transform 0.15s;
+      color: var(--text-3);
+      transition: transform 0.2s var(--ease);
+      font-size: 0.8rem;
     }
-    .kanban-group.open .kanban-group-chevron { transform: rotate(90deg); }
+    .kanban-group.open .kanban-group-chevron { transform: rotate(90deg); color: var(--accent); }
     .kanban-group-sender {
-      font-size: 0.8rem; font-weight: 600; color: #1e1e2e;
-      flex: 1; min-width: 0; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap;
+      flex: 1; min-width: 0;
+      font-size: 0.82rem; font-weight: 600;
+      color: var(--text);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     .kanban-group-count {
-      background: #dbeafe; color: #1d4ed8;
-      font-size: 0.66rem; font-weight: 700;
-      padding: 0.08rem 0.42rem; border-radius: 99px;
-      flex-shrink: 0;
+      font-family: var(--mono);
+      font-size: 0.66rem;
+      padding: 0.08rem 0.45rem;
+      background: var(--accent-soft);
+      color: var(--accent-2);
+      border-radius: 999px;
     }
     .kanban-group-body {
       max-height: 0; overflow: hidden;
-      transition: max-height 0.25s ease;
-      padding: 0 0.4rem;
+      transition: max-height 0.32s var(--ease);
+      padding: 0 0.45rem;
+      background: var(--surface-2);
+      border-top: 1px solid var(--border);
     }
     .kanban-group.open .kanban-group-body {
       max-height: 4000px;
-      padding: 0.15rem 0.4rem 0.4rem;
+      padding: 0.1rem 0.45rem 0.45rem;
     }
     .kanban-group-body .kanban-card {
       box-shadow: none;
       margin-top: 0.35rem;
     }
 
-    #toast {
-      position: fixed; bottom: 1.5rem; right: 1.5rem;
-      background: #1e1e2e; color: #cdd6f4;
-      padding: 0.65rem 1.1rem; border-radius: 8px;
-      font-size: 0.875rem; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-      opacity: 0; transition: opacity 0.25s; pointer-events: none; z-index: 300;
+    /* ── Modals ─────────────────────────────────────────────────── */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0; z-index: 200;
+      background: rgba(15,18,23,0.45);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+      padding: 1.2rem;
+      animation: backdropIn 0.18s var(--ease);
     }
-    #toast.show { opacity: 1; }
+    @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%; max-width: 460px;
+      padding: 1.4rem 1.5rem 1.2rem;
+      max-height: 90vh; overflow-y: auto;
+      animation: modalIn 0.2s var(--ease);
+    }
+    .modal.wide { max-width: 600px; }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(8px) scale(0.99); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal h2 {
+      font-size: 1.15rem; font-weight: 700;
+      letter-spacing: -0.015em;
+      margin-bottom: 1rem;
+    }
+    .modal h3 {
+      font-size: 0.78rem; font-weight: 600;
+      color: var(--text-2);
+      margin-bottom: 0.55rem;
+    }
+
+    .form-group { margin-bottom: 0.85rem; }
+    .form-group label {
+      display: block;
+      font-size: 0.78rem; font-weight: 500;
+      color: var(--text-2);
+      margin-bottom: 0.35rem;
+    }
+    .form-group input, .form-group select, .form-group textarea { width: 100%; }
+    .form-group textarea { resize: vertical; min-height: 76px; font-family: var(--font); }
+    .modal-footer {
+      display: flex; justify-content: flex-end; gap: 0.5rem;
+      margin-top: 1.2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* Check-in */
+    .checkin-section {
+      margin-bottom: 1.3rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .checkin-section:last-child { border-bottom: none; margin-bottom: 0; }
+
+    .overdue-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.55rem 0.7rem;
+      border-radius: var(--r-md);
+      background: var(--danger-soft);
+      border: 1px solid #FCA5A5;
+      margin-bottom: 0.45rem;
+    }
+    .overdue-title { flex: 1; font-size: 0.88rem; font-weight: 500; }
+    .overdue-meta  { font-size: 0.74rem; color: var(--text-3); }
+    .overdue-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--success); cursor: pointer; flex-shrink: 0; }
+
+    .today-task-row {
+      display: flex; gap: 0.4rem; align-items: center;
+      margin-bottom: 0.45rem;
+    }
+    .today-task-row input[type="text"] { flex: 1; }
+    .today-task-row select { width: 110px; flex-shrink: 0; }
+    .today-task-row .remove-row {
+      width: 30px; height: 30px;
+      background: transparent; border: 1px solid transparent;
+      color: var(--text-3); cursor: pointer;
+      border-radius: var(--r-sm);
+      font-size: 1.05rem;
+    }
+    .today-task-row .remove-row:hover { color: var(--danger); background: var(--danger-soft); }
+
+    .add-row-btn {
+      background: transparent;
+      border: 1px dashed var(--border-strong);
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: var(--r-md);
+      font-size: 0.82rem; font-weight: 500;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background 0.14s var(--ease), color 0.14s var(--ease);
+    }
+    .add-row-btn:hover { background: var(--surface-2); color: var(--text); }
+
+    /* Email modal */
+    .email-step {
+      font-size: 0.85rem; line-height: 1.55;
+      color: var(--text-2);
+      margin-bottom: 1rem;
+      padding: 0.85rem 1rem;
+      background: var(--surface-2);
+      border-radius: var(--r-md);
+    }
+    .email-step code {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      background: var(--surface);
+      padding: 0.05rem 0.4rem;
+      border-radius: var(--r-xs);
+      border: 1px solid var(--border);
+    }
+    .sync-result {
+      margin-top: 0.85rem; padding: 0.65rem 0.85rem;
+      font-size: 0.82rem;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+    }
+    .sync-result.success { color: var(--success); background: var(--success-soft); border-color: #6EE7B7; }
+    .sync-result.error   { color: var(--danger); background: var(--danger-soft); border-color: #FCA5A5; }
+    .sync-result.hidden  { display: none; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 1.4rem; right: 1.4rem;
+      background: var(--text); color: var(--bg);
+      padding: 0.65rem 1rem;
+      font-size: 0.85rem; font-weight: 500;
+      border-radius: var(--r-md);
+      opacity: 0; transform: translateY(8px);
+      transition: opacity 0.2s var(--ease), transform 0.2s var(--ease);
+      pointer-events: none; z-index: 300;
+      box-shadow: var(--shadow-lg);
+      max-width: 320px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* Responsive */
+    @media (max-width: 720px) {
+      html { font-size: 14px; }
+      .topbar-inner { flex-wrap: wrap; }
+      .kanban-board { grid-template-columns: repeat(4, 80vw); }
+      .task-card { grid-template-columns: 1rem 1fr; }
+      .task-actions { grid-column: 1 / -1; padding-left: 1.85rem; padding-top: 0.4rem; }
+      .email-group-preview { display: none; }
+      .email-group-header { grid-template-columns: 1.2rem 1fr auto; }
+    }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>📋 Personal Assistant</h1>
-  <span id="stream-status">Connecting...</span>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">PA</span>
+      Personal Assistant
+      <span class="brand-sub" id="mast-date"></span>
+    </div>
+    <div class="topbar-right">
+      <span class="live-pill"><span class="live-dot"></span><span id="stream-status">Connecting…</span></span>
+    </div>
+  </div>
 </header>
+
+<div class="notif-banner hidden" id="notif-banner">
+  <span>Enable desktop notifications to receive task reminders &amp; urgent email alerts.</span>
+  <button class="btn btn-accent" onclick="requestNotifPermission()">Enable</button>
+</div>
 
 <div class="container">
 
-  <div class="notif-banner hidden" id="notif-banner">
-    <span>Enable desktop notifications to receive task reminders.</span>
-    <button class="btn btn-primary btn-sm" onclick="requestNotifPermission()">Enable notifications</button>
-  </div>
-
   <div class="toolbar">
-    <button class="btn btn-primary" onclick="openAddModal()">+ New Task</button>
-    <button class="btn btn-checkin" onclick="openCheckinManual()">🌅 Daily Check-in</button>
-    <span id="email-pill" onclick="openEmailModal()" title="Email sync settings">📧 Email sync</span>
-    <select id="filter-status" onchange="loadTasks()">
-      <option value="">All tasks</option>
+    <button class="btn btn-primary" onclick="openAddModal()">＋ New task</button>
+    <button class="btn" onclick="openCheckinManual()">Daily check-in</button>
+    <span id="email-pill" onclick="openEmailModal()" title="Email sync settings">Email sync</span>
+    <div class="toolbar-grow"></div>
+    <select id="filter-status" onchange="loadTasks()" aria-label="Status filter">
+      <option value="">All status</option>
       <option value="pending">Pending</option>
       <option value="done">Done</option>
       <option value="overdue">Overdue</option>
     </select>
-    <select id="filter-priority" onchange="loadTasks()">
+    <select id="filter-priority" onchange="loadTasks()" aria-label="Priority filter">
       <option value="">Any priority</option>
       <option value="high">High</option>
       <option value="medium">Medium</option>
       <option value="low">Low</option>
     </select>
     <div class="view-toggle" role="tablist" aria-label="View mode">
-      <button class="view-btn active" id="view-list"   onclick="setView('list')"   title="List view">📋 List</button>
-      <button class="view-btn"        id="view-kanban" onclick="setView('kanban')" title="Kanban view">📊 Kanban</button>
+      <button class="view-btn active" id="view-list"   onclick="setView('list')">List</button>
+      <button class="view-btn"        id="view-kanban" onclick="setView('kanban')">Board</button>
     </div>
   </div>
 
-  <div class="tab-bar">
-    <button class="tab-btn active" id="tab-all"           onclick="setTab('all')">All Tasks <span class="tab-count" id="cnt-all">0</span></button>
-    <button class="tab-btn"        id="tab-new"           onclick="setTab('new')">🆕 New today <span class="tab-count" id="cnt-new">0</span></button>
-    <button class="tab-btn"        id="tab-urgent"        onclick="setTab('urgent')">🚨 Urgent <span class="tab-count" id="cnt-urgent">0</span></button>
-    <button class="tab-btn"        id="tab-meetings"      onclick="setTab('meetings')">📅 Meetings <span class="tab-count" id="cnt-meetings">0</span></button>
-    <button class="tab-btn"        id="tab-safety"        onclick="setTab('safety')">🔴 Safety <span class="tab-count" id="cnt-safety">0</span></button>
-    <button class="tab-btn"        id="tab-status_report" onclick="setTab('status_report')">📊 Status Reports <span class="tab-count" id="cnt-status_report">0</span></button>
-    <button class="tab-btn"        id="tab-payment"       onclick="setTab('payment')">💳 Payments <span class="tab-count" id="cnt-payment">0</span></button>
-  </div>
+  <nav class="tabs">
+    <button class="tab-btn active" id="tab-all"           onclick="setTab('all')">All <span class="tab-count" id="cnt-all">0</span></button>
+    <button class="tab-btn"        id="tab-new"           onclick="setTab('new')">New today <span class="tab-count" id="cnt-new">0</span></button>
+    <button class="tab-btn"        id="tab-urgent"        onclick="setTab('urgent')">Urgent <span class="tab-count" id="cnt-urgent">0</span></button>
+    <button class="tab-btn"        id="tab-meetings"      onclick="setTab('meetings')">Meetings <span class="tab-count" id="cnt-meetings">0</span></button>
+    <button class="tab-btn"        id="tab-safety"        onclick="setTab('safety')">Safety <span class="tab-count" id="cnt-safety">0</span></button>
+    <button class="tab-btn"        id="tab-status_report" onclick="setTab('status_report')">Reports <span class="tab-count" id="cnt-status_report">0</span></button>
+    <button class="tab-btn"        id="tab-payment"       onclick="setTab('payment')">Payments <span class="tab-count" id="cnt-payment">0</span></button>
+  </nav>
 
   <div class="tasks-grid" id="tasks-grid">
     <div class="empty-state"><div class="icon">⏳</div><p>Loading tasks…</p></div>
@@ -485,9 +865,9 @@
 <!-- ── Add / Edit Task Modal ── -->
 <div class="modal-backdrop" id="task-modal">
   <div class="modal">
-    <h2 id="modal-title">New Task</h2>
+    <h2 id="modal-title">New task</h2>
     <div class="form-group">
-      <label>Title *</label>
+      <label>Title</label>
       <input type="text" id="f-title" placeholder="What needs to be done?">
     </div>
     <div class="form-group">
@@ -510,10 +890,10 @@
       <label>Category</label>
       <select id="f-category">
         <option value="">None</option>
-        <option value="safety">🔴 Safety</option>
-        <option value="status_report">📊 Status Report</option>
-        <option value="meeting">📅 Meeting</option>
-        <option value="payment">💳 Payment</option>
+        <option value="safety">Safety</option>
+        <option value="status_report">Status report</option>
+        <option value="meeting">Meeting</option>
+        <option value="payment">Payment</option>
       </select>
     </div>
     <div class="form-group">
@@ -526,8 +906,8 @@
       </select>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('task-modal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveTask()">Save</button>
+      <button class="btn btn-quiet" onclick="closeModal('task-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveTask()">Save</button>
     </div>
   </div>
 </div>
@@ -535,30 +915,22 @@
 <!-- ── Daily Check-in Modal ── -->
 <div class="modal-backdrop" id="checkin-modal">
   <div class="modal wide">
-    <h2 id="checkin-heading">🌅 Daily Check-in</h2>
+    <h2 id="checkin-heading">Daily check-in</h2>
 
-    <!-- Yesterday's unfinished tasks -->
     <div class="checkin-section" id="overdue-section" style="display:none">
-      <h3>⚠️ Unfinished tasks from before — did you complete any?</h3>
-      <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:0.75rem">
-        Check the ones you finished. Unchecked tasks stay open.
-      </p>
+      <h3>Unfinished — did you complete any?</h3>
       <div id="overdue-list"></div>
     </div>
 
-    <!-- Today's tasks -->
     <div class="checkin-section">
-      <h3>📝 What do you need to do today?</h3>
-      <p style="font-size:0.82rem;color:#9ca3af;margin-bottom:0.75rem">
-        Add as many tasks as you like. They'll be created with today as the due date.
-      </p>
+      <h3>Today's tasks</h3>
       <div id="today-rows"></div>
-      <button class="add-row-btn" onclick="addTodayRow()">+ Add another task</button>
+      <button class="add-row-btn" onclick="addTodayRow()">＋ Add another</button>
     </div>
 
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('checkin-modal')">Skip</button>
-      <button class="btn btn-checkin" onclick="submitCheckin()">Finish Check-in</button>
+      <button class="btn btn-quiet" onclick="closeModal('checkin-modal')">Skip</button>
+      <button class="btn btn-accent" onclick="submitCheckin()">Finish check-in</button>
     </div>
   </div>
 </div>
@@ -566,35 +938,34 @@
 <!-- ── Email Setup Modal ── -->
 <div class="modal-backdrop" id="email-modal">
   <div class="modal">
-    <h2>📧 Email Sync Setup</h2>
+    <h2>Email sync</h2>
 
     <div class="email-step">
-      Auto-imports unread Gmail as tasks every 5 minutes.<br>
-      Requires a <strong>Google App Password</strong> (not your regular password):<br>
-      1. Go to <strong>Google Account → Security → 2-Step Verification → App passwords</strong><br>
-      2. Create one for <code>Mail</code> — you'll get a 16-character password.<br>
-      3. Paste it below. Credentials are stored locally in <code>~/.assistant/</code>.
+      Auto-imports unread Gmail as tasks every 5 minutes. Requires a Google <strong>App Password</strong> (not your regular password):<br>
+      1. Google Account → Security → 2-Step Verification → App passwords.<br>
+      2. Create one for <code>Mail</code> — paste the 16-char password below.<br>
+      Credentials stay local in <code>~/.assistant/</code>.
     </div>
 
     <div class="form-group">
-      <label>Work email address</label>
+      <label>Work email</label>
       <input type="email" id="em-email" placeholder="you@company.com">
     </div>
     <div class="form-group">
-      <label>App Password <span style="font-weight:400;color:#9ca3af">(16 chars, no spaces)</span></label>
+      <label>App password</label>
       <input type="password" id="em-password" placeholder="xxxx xxxx xxxx xxxx">
     </div>
     <div class="form-group">
-      <label>IMAP host <span style="font-weight:400;color:#9ca3af">(leave default for Gmail)</span></label>
+      <label>IMAP host</label>
       <input type="text" id="em-host" value="imap.gmail.com">
     </div>
 
     <div class="sync-result hidden" id="em-result"></div>
 
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('email-modal')">Cancel</button>
-      <button class="btn btn-ghost" onclick="rescanInbox()" id="em-rescan-btn" title="Import already-read emails too">🔄 Rescan inbox</button>
-      <button class="btn btn-primary" onclick="saveEmailConfig()" id="em-save-btn">Connect &amp; Test</button>
+      <button class="btn btn-quiet" onclick="closeModal('email-modal')">Close</button>
+      <button class="btn btn-ghost" onclick="rescanInbox()" id="em-rescan-btn">↻ Rescan</button>
+      <button class="btn btn-accent" onclick="saveEmailConfig()" id="em-save-btn">Connect &amp; test</button>
     </div>
   </div>
 </div>
@@ -607,11 +978,17 @@
   let _activeTab = 'all';
   let _view = localStorage.getItem('view') || 'list';
 
+  (function setMastDate() {
+    const el = document.getElementById('mast-date');
+    if (!el) return;
+    el.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  })();
+
   const KANBAN_COLUMNS = [
-    { id: 'todo',    label: '📥 To Do'    },
-    { id: 'overdue', label: '⏰ Overdue'  },
-    { id: 'snoozed', label: '💤 Snoozed'  },
-    { id: 'done',    label: '✅ Done'     },
+    { id: 'todo',    label: 'To do'    },
+    { id: 'overdue', label: 'Overdue'  },
+    { id: 'snoozed', label: 'Snoozed'  },
+    { id: 'done',    label: 'Done'     },
   ];
 
   function getColumnForTask(t) {
@@ -631,10 +1008,10 @@
   }
 
   const EMAIL_CATEGORIES = {
-    safety:        { label: 'Safety',        emoji: '🔴' },
-    status_report: { label: 'Status Report', emoji: '📊' },
-    meeting:       { label: 'Meeting',       emoji: '📅' },
-    payment:       { label: 'Payment',       emoji: '💳' },
+    safety:        { label: 'Safety',        icon: '⚠' },
+    status_report: { label: 'Report',        icon: '◵' },
+    meeting:       { label: 'Meeting',       icon: '◷' },
+    payment:       { label: 'Payment',       icon: '$' },
   };
 
   function getEmailCategory(description) {
@@ -741,7 +1118,7 @@
     }
   }
 
-  // ── Toast ───────────────────────────────────────────────────────────────────
+  // Toast
   let toastTimer;
   function toast(msg) {
     const el = document.getElementById('toast');
@@ -751,54 +1128,52 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
   }
 
-  // ── Notifications ───────────────────────────────────────────────────────────
+  // Notifications
   function checkNotifPermission() {
     if (!('Notification' in window)) return;
     if (Notification.permission === 'default') {
       document.getElementById('notif-banner').classList.remove('hidden');
     }
   }
-
   function requestNotifPermission() {
     Notification.requestPermission().then(p => {
       if (p === 'granted') {
         document.getElementById('notif-banner').classList.add('hidden');
-        toast('Desktop notifications enabled!');
+        toast('Desktop notifications enabled.');
       }
     });
   }
-
   function showDesktopNotif(title, body) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const n = new Notification(title, { body });
     n.onclick = () => { window.focus(); n.close(); };
   }
 
-  // ── SSE stream ──────────────────────────────────────────────────────────────
+  // SSE stream
   function connectStream() {
     const statusEl = document.getElementById('stream-status');
     const es = new EventSource('/stream');
 
-    es.onopen = () => { statusEl.textContent = '🟢 Live'; };
+    es.onopen = () => { statusEl.textContent = 'Live'; };
     es.onmessage = e => {
       try {
         const data = JSON.parse(e.data);
         if (data.type === 'reminder' && data.id) {
           showDesktopNotif(data.title, data.body);
-          toast(`⏰ Reminder: ${data.title}`);
+          toast(`⏰ ${data.title}`);
           loadTasks();
         } else if (data.type === 'daily_checkin') {
           openCheckin(data.overdue_tasks || []);
-          showDesktopNotif('Daily Check-in', 'Time to plan your day!');
+          showDesktopNotif('Daily check-in', 'Time to plan your day.');
         } else if (data.type === 'urgent_email') {
-          showDesktopNotif('🚨 Urgent email: ' + data.title, data.body || '');
-          toast('🚨 Urgent email: ' + data.title);
+          showDesktopNotif('🚨 Urgent: ' + data.title, data.body || '');
+          toast('🚨 Urgent — ' + data.title);
           loadTasks();
         } else if (data.type === 'email_sync') {
           const n = data.imported;
           if (n > 0) {
-            toast(`📧 ${n} email task${n > 1 ? 's' : ''} imported (safety/reports/meetings).`);
-            showDesktopNotif('New email tasks', `${n} categorised email${n > 1 ? 's' : ''} added as task${n > 1 ? 's' : ''}.`);
+            toast(`${n} email${n > 1 ? 's' : ''} imported.`);
+            showDesktopNotif('New email tasks', `${n} email${n > 1 ? 's' : ''} added.`);
           }
           loadTasks();
           updateEmailPill();
@@ -806,13 +1181,13 @@
       } catch (_) {}
     };
     es.onerror = () => {
-      statusEl.textContent = '🔴 Reconnecting…';
+      statusEl.textContent = 'Reconnecting…';
       es.close();
       setTimeout(connectStream, 5000);
     };
   }
 
-  // ── API helpers ─────────────────────────────────────────────────────────────
+  // API
   async function api(url, opts = {}) {
     const r = await fetch(url, {
       headers: { 'Content-Type': 'application/json' },
@@ -822,7 +1197,6 @@
     return r.json();
   }
 
-  // ── Task list ───────────────────────────────────────────────────────────────
   async function loadTasks() {
     const params = new URLSearchParams();
     const s = document.getElementById('filter-status').value;
@@ -836,17 +1210,19 @@
       renderFilteredTasks();
     } catch (_) {
       document.getElementById('tasks-grid').innerHTML =
-        '<div class="empty-state"><div class="icon">⚠️</div><p>Could not load tasks.</p></div>';
+        '<div class="empty-state"><div class="icon">⌁</div><p>Could not load tasks.</p></div>';
     }
   }
 
   function formatDue(due_at) {
-    if (!due_at) return 'No due date';
+    if (!due_at) return { text: 'No date', overdue: false };
     const d = new Date(due_at.replace(' ', 'T'));
     const now = new Date();
-    const opts = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    if (d < now) return `⚠️ Overdue (${d.toLocaleString('en-US', opts)})`;
-    return d.toLocaleString('en-US', opts);
+    const sameYear = d.getFullYear() === now.getFullYear();
+    const opts = sameYear
+      ? { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+      : { year: 'numeric', month: 'short', day: 'numeric' };
+    return { text: d.toLocaleString('en-GB', opts), overdue: d < now };
   }
 
   function esc(s) {
@@ -869,47 +1245,66 @@
     renderTasks(tasks);
   }
 
+  function chipDue(due_at) {
+    const d = formatDue(due_at);
+    return `<span class="meta-chip due${d.overdue ? ' overdue' : ''}">
+      <span class="ico">${d.overdue ? '⚠' : '📅'}</span>${esc(d.text)}
+    </span>`;
+  }
+
+  function chipStatus(status) {
+    if (status === 'pending') return ''; // hide the default
+    return `<span class="meta-chip status-${esc(status)}">${esc(status)}</span>`;
+  }
+
+  function chipCat(cat) {
+    const info = EMAIL_CATEGORIES[cat];
+    if (!info) return '';
+    return `<span class="meta-chip cat-${esc(cat)}"><span class="ico">${info.icon}</span>${esc(info.label)}</span>`;
+  }
+
   function renderTaskCard(t) {
     const cat = getEmailCategory(t.description);
-    const catInfo = cat ? EMAIL_CATEGORIES[cat] : null;
     const cleanDesc = stripCategoryTag(t.description);
     const gmailUrl = getGmailLink(t.description);
-    const catBadge = catInfo
-      ? `<span class="badge badge-${esc(cat)}">${catInfo.emoji} ${catInfo.label}</span>`
-      : '';
+    const isDone = t.status === 'done';
+
+    const meta = [chipDue(t.due_at), chipStatus(t.status), chipCat(cat)];
+    if (t.recurrence) meta.push(`<span class="meta-chip"><span class="ico">↻</span>${esc(t.recurrence)}</span>`);
+    if (cleanDesc) {
+      const short = cleanDesc.slice(0, 60);
+      meta.push(`<span class="meta-chip" title="${esc(cleanDesc)}"><span class="ico">📝</span>${esc(short)}${cleanDesc.length > 60 ? '…' : ''}</span>`);
+    }
+
     return `
-    <div class="task-card ${esc(t.priority)} ${t.status === 'done' ? 'done' : ''}">
+    <article class="task-card ${esc(t.priority)} ${isDone ? 'done' : ''}">
+      <span class="prio" aria-label="${esc(t.priority)} priority"></span>
       <div class="task-info">
-        <div class="task-title ${t.status === 'done' ? 'strikethrough' : ''}">
+        <h3 class="task-title ${isDone ? 'strikethrough' : ''}">
           ${gmailUrl
-            ? `<a href="${gmailUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(t.title)}</a>`
+            ? `<a href="${gmailUrl}" target="_blank" rel="noopener">${esc(t.title)}</a>`
             : esc(t.title)}
-        </div>
-        <div class="task-meta">
-          <span class="badge badge-${esc(t.priority)}">${esc(t.priority)}</span>
-          <span class="badge badge-${esc(t.status)}">${esc(t.status)}</span>
-          ${catBadge}
-          <span>📅 ${formatDue(t.due_at)}</span>
-          ${t.recurrence ? `<span>🔁 ${esc(t.recurrence)}</span>` : ''}
-          ${cleanDesc ? `<span title="${esc(cleanDesc)}">📝 ${esc(cleanDesc.slice(0,50))}${cleanDesc.length > 50 ? '…' : ''}</span>` : ''}
-        </div>
+        </h3>
+        <div class="task-meta">${meta.join('')}</div>
       </div>
       <div class="task-actions">
-        ${gmailUrl ? `<a class="btn btn-ghost btn-sm" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">📬</a>` : ''}
-        ${t.status !== 'done' ? `
-          <button class="btn btn-success btn-sm" onclick="doneTask(${t.id})">Done</button>
-          <button class="btn btn-warning btn-sm" onclick="snoozeTask(${t.id})">Snooze</button>
-        ` : ''}
-        <button class="btn btn-ghost btn-sm" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})'>Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="removeTask(${t.id})">Del</button>
+        ${gmailUrl ? `<a class="ico-btn" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">↗</a>` : ''}
+        ${!isDone ? `
+          <button class="ico-btn success" onclick="doneTask(${t.id})" title="Mark done">✓</button>
+          <button class="ico-btn warn"    onclick="snoozeTask(${t.id})" title="Snooze">⏾</button>
+        ` : `
+          <button class="ico-btn" onclick="reopenTask(${t.id})" title="Reopen">↺</button>
+        `}
+        <button class="ico-btn" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})' title="Edit">✎</button>
+        <button class="ico-btn danger" onclick="removeTask(${t.id})" title="Delete">×</button>
       </div>
-    </div>`;
+    </article>`;
   }
 
   function renderTasks(tasks) {
     const grid = document.getElementById('tasks-grid');
     if (!tasks.length) {
-      grid.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>No tasks here.</p></div>';
+      grid.innerHTML = '<div class="empty-state"><div class="icon">✓</div><p>Nothing here. Enjoy the calm.</p></div>';
       return;
     }
     if (_view === 'kanban') {
@@ -917,9 +1312,8 @@
       return;
     }
 
-    // Group email tasks by sender; keep original order via first-occurrence index.
     const groups = new Map();
-    const items = []; // entries: { kind: 'task'|'group', ... }
+    const items = [];
     for (const t of tasks) {
       const senderRaw = getEmailSender(t.description);
       const key = normalizeSender(senderRaw);
@@ -951,12 +1345,13 @@
         return bd.localeCompare(ad);
       });
       const display = senderDisplayName(item.senderRaw);
-      const preview = `${esc(newest.title)} · ${formatDue(newest.due_at)}`;
+      const due = formatDue(newest.due_at);
+      const preview = `${esc(newest.title)} · ${esc(due.text)}`;
       return `
         <div class="email-group ${open ? 'open' : ''}" data-group="${esc(item.key)}">
           <div class="email-group-header" onclick="toggleEmailGroup('${esc(item.key)}')">
-            <span class="email-group-chevron">▸</span>
-            <span class="email-group-sender" title="${esc(item.senderRaw)}">📧 ${esc(display)}</span>
+            <span class="email-group-chevron">›</span>
+            <span class="email-group-sender" title="${esc(item.senderRaw)}">${esc(display)}</span>
             <span class="email-group-count">${item.tasks.length}</span>
             <span class="email-group-preview">${preview}</span>
           </div>
@@ -967,9 +1362,9 @@
     }).join('');
   }
 
-  // ── Kanban rendering ────────────────────────────────────────────────────────
+  // Kanban
   function renderKanbanColumnBody(colId, tasks) {
-    if (!tasks.length) return '<div class="kanban-column-empty">Empty</div>';
+    if (!tasks.length) return '<div class="kanban-column-empty">No items</div>';
 
     const groups = new Map();
     const items = [];
@@ -999,8 +1394,8 @@
       return `
         <div class="kanban-group ${open ? 'open' : ''}" data-group="${esc(groupKey)}">
           <div class="kanban-group-header" onclick="toggleEmailGroup('${esc(groupKey)}')">
-            <span class="kanban-group-chevron">▸</span>
-            <span class="kanban-group-sender" title="${esc(item.senderRaw)}">📧 ${esc(display)}</span>
+            <span class="kanban-group-chevron">›</span>
+            <span class="kanban-group-sender" title="${esc(item.senderRaw)}">✉ ${esc(display)}</span>
             <span class="kanban-group-count">${item.tasks.length}</span>
           </div>
           <div class="kanban-group-body">
@@ -1022,7 +1417,7 @@
                ondragleave="kanbanDragLeave(event)"
                ondrop="kanbanDrop(event, '${col.id}')">
             <div class="kanban-column-header">
-              <span>${col.label}</span>
+              <span class="col-label">${col.label}</span>
               <span class="col-count">${byCol[col.id].length}</span>
             </div>
             ${renderKanbanColumnBody(col.id, byCol[col.id])}
@@ -1034,13 +1429,13 @@
 
   function renderKanbanCard(t) {
     const cat = getEmailCategory(t.description);
-    const catInfo = cat ? EMAIL_CATEGORIES[cat] : null;
     const cleanDesc = stripCategoryTag(t.description);
     const gmailUrl = getGmailLink(t.description);
-    const catBadge = catInfo
-      ? `<span class="badge badge-${esc(cat)}">${catInfo.emoji} ${catInfo.label}</span>`
-      : '';
     const isDone = t.status === 'done';
+
+    const meta = [chipDue(t.due_at), chipCat(cat)];
+    if (t.recurrence) meta.push(`<span class="meta-chip"><span class="ico">↻</span>${esc(t.recurrence)}</span>`);
+
     return `
       <div class="kanban-card ${esc(t.priority)} ${isDone ? 'done' : ''}"
            draggable="true"
@@ -1048,81 +1443,67 @@
            ondragend="kanbanDragEnd(event)"
            data-task-id="${t.id}">
         <div class="kanban-card-title">
-          ${gmailUrl
-            ? `<a href="${gmailUrl}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${esc(t.title)}</a>`
-            : esc(t.title)}
+          <span>${gmailUrl
+            ? `<a href="${gmailUrl}" target="_blank" rel="noopener">${esc(t.title)}</a>`
+            : esc(t.title)}</span>
         </div>
-        <div class="kanban-card-meta">
-          <span class="badge badge-${esc(t.priority)}">${esc(t.priority)}</span>
-          ${catBadge}
-          <span>📅 ${formatDue(t.due_at)}</span>
-          ${t.recurrence ? `<span>🔁 ${esc(t.recurrence)}</span>` : ''}
-          ${cleanDesc ? `<span title="${esc(cleanDesc)}">📝 ${esc(cleanDesc.slice(0,40))}${cleanDesc.length > 40 ? '…' : ''}</span>` : ''}
-        </div>
+        <div class="kanban-card-meta">${meta.join('')}</div>
         <div class="kanban-card-actions">
-          ${gmailUrl ? `<a class="btn btn-ghost btn-sm" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">📬</a>` : ''}
+          ${gmailUrl ? `<a class="ico-btn" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">↗</a>` : ''}
           ${!isDone ? `
-            <button class="btn btn-success btn-sm" onclick="doneTask(${t.id})" title="Mark done">✓</button>
-            <button class="btn btn-warning btn-sm" onclick="snoozeTask(${t.id})" title="Snooze">💤</button>
+            <button class="ico-btn success" onclick="doneTask(${t.id})" title="Done">✓</button>
+            <button class="ico-btn warn"    onclick="snoozeTask(${t.id})" title="Snooze">⏾</button>
           ` : `
-            <button class="btn btn-ghost btn-sm" onclick="reopenTask(${t.id})" title="Reopen">↩</button>
+            <button class="ico-btn" onclick="reopenTask(${t.id})" title="Reopen">↺</button>
           `}
-          <button class="btn btn-ghost btn-sm" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})' title="Edit">✎</button>
-          <button class="btn btn-danger btn-sm" onclick="removeTask(${t.id})" title="Delete">🗑</button>
+          <button class="ico-btn" onclick='openEditModal(${t.id}, ${JSON.stringify(t)})' title="Edit">✎</button>
+          <button class="ico-btn danger" onclick="removeTask(${t.id})" title="Delete">×</button>
         </div>
       </div>
     `;
   }
 
-  // ── Kanban drag & drop ──────────────────────────────────────────────────────
+  // Drag & drop
   let _draggedTaskId = null;
-
   function kanbanDragStart(e, id) {
     _draggedTaskId = id;
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(id));
     e.target.classList.add('dragging');
   }
-
   function kanbanDragEnd(e) {
     e.target.classList.remove('dragging');
-    document.querySelectorAll('.kanban-column.drop-target')
-      .forEach(c => c.classList.remove('drop-target'));
+    document.querySelectorAll('.kanban-column.drop-target').forEach(c => c.classList.remove('drop-target'));
     _draggedTaskId = null;
   }
-
   function kanbanDragOver(e, colId) {
-    if (colId === 'overdue') return; // can't manually drop into Overdue (derived state)
+    if (colId === 'overdue') return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     e.currentTarget.classList.add('drop-target');
   }
-
   function kanbanDragLeave(e) {
     if (!e.currentTarget.contains(e.relatedTarget)) {
       e.currentTarget.classList.remove('drop-target');
     }
   }
-
   async function kanbanDrop(e, colId) {
     e.preventDefault();
     e.currentTarget.classList.remove('drop-target');
     const id = _draggedTaskId ?? Number(e.dataTransfer.getData('text/plain'));
     _draggedTaskId = null;
     if (!id) return;
-
     const task = _allTasks.find(t => t.id === id);
     if (!task) return;
     const from = getColumnForTask(task);
     if (from === colId) return;
-
     try {
       if (colId === 'done') {
         await api(`/api/tasks/${id}/done`, { method: 'POST', body: '{}' });
-        toast('Task completed!');
+        toast('Task completed.');
       } else if (colId === 'snoozed') {
         await api(`/api/tasks/${id}/snooze`, { method: 'POST', body: JSON.stringify({ minutes: 30 }) });
-        toast('Snoozed for 30 minutes.');
+        toast('Snoozed for 30 min.');
       } else if (colId === 'todo') {
         await api(`/api/tasks/${id}/reopen`, { method: 'POST', body: '{}' });
         toast('Task reopened.');
@@ -1138,22 +1519,18 @@
     toast('Task reopened.');
     loadTasks();
   }
-
-  // ── Task actions ────────────────────────────────────────────────────────────
   async function doneTask(id) {
     await api(`/api/tasks/${id}/done`, { method: 'POST', body: '{}' });
-    toast('Task completed!');
+    toast('Task completed.');
     loadTasks();
   }
-
   async function snoozeTask(id) {
     const minutes = prompt('Snooze for how many minutes?', '30');
     if (!minutes || isNaN(+minutes)) return;
     await api(`/api/tasks/${id}/snooze`, { method: 'POST', body: JSON.stringify({ minutes: +minutes }) });
-    toast(`Snoozed for ${minutes} minutes.`);
+    toast(`Snoozed for ${minutes} min.`);
     loadTasks();
   }
-
   async function removeTask(id) {
     if (!confirm('Delete this task?')) return;
     await api(`/api/tasks/${id}`, { method: 'DELETE' });
@@ -1161,7 +1538,7 @@
     loadTasks();
   }
 
-  // ── Add/Edit modal ──────────────────────────────────────────────────────────
+  // Modals
   function clearForm() {
     document.getElementById('f-title').value = '';
     document.getElementById('f-description').value = '';
@@ -1170,18 +1547,16 @@
     document.getElementById('f-category').value = '';
     document.getElementById('f-recurrence').value = '';
   }
-
   function openAddModal() {
     editingTaskId = null;
-    document.getElementById('modal-title').textContent = 'New Task';
+    document.getElementById('modal-title').textContent = 'New task';
     clearForm();
     document.getElementById('task-modal').classList.add('open');
     setTimeout(() => document.getElementById('f-title').focus(), 50);
   }
-
   function openEditModal(id, task) {
     editingTaskId = id;
-    document.getElementById('modal-title').textContent = 'Edit Task';
+    document.getElementById('modal-title').textContent = 'Edit task';
     document.getElementById('f-title').value = task.title ?? '';
     document.getElementById('f-description').value = stripCategoryTag(task.description ?? '');
     document.getElementById('f-priority').value = task.priority ?? 'medium';
@@ -1196,7 +1571,6 @@
     }
     document.getElementById('task-modal').classList.add('open');
   }
-
   async function saveTask() {
     const title = document.getElementById('f-title').value.trim();
     if (!title) { alert('Title is required.'); return; }
@@ -1214,54 +1588,47 @@
     };
     if (editingTaskId) {
       await api(`/api/tasks/${editingTaskId}`, { method: 'PUT', body: JSON.stringify(payload) });
-      toast('Task updated!');
+      toast('Task updated.');
     } else {
       await api('/api/tasks', { method: 'POST', body: JSON.stringify(payload) });
-      toast('Task added!');
+      toast('Task added.');
     }
     closeModal('task-modal');
     loadTasks();
   }
 
-  // ── Check-in modal ──────────────────────────────────────────────────────────
+  // Check-in
   async function openCheckinManual() {
     const overdue = await api('/api/checkin');
     openCheckin(overdue);
   }
-
   function openCheckin(overdueTasks) {
-    // Date label
-    const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
-    document.getElementById('checkin-heading').textContent = `🌅 Daily Check-in — ${today}`;
+    const today = new Date().toLocaleDateString('en-GB', { weekday:'long', month:'long', day:'numeric' });
+    document.getElementById('checkin-heading').textContent = `Daily check-in — ${today}`;
 
-    // Overdue section
     const sec = document.getElementById('overdue-section');
     const list = document.getElementById('overdue-list');
     if (overdueTasks.length > 0) {
       sec.style.display = '';
       list.innerHTML = overdueTasks.map(t => {
         const dueStr = t.due_at
-          ? new Date(t.due_at.replace(' ','T')).toLocaleDateString('en-US', { month:'short', day:'numeric' })
+          ? new Date(t.due_at.replace(' ','T')).toLocaleDateString('en-GB', { month:'short', day:'numeric' })
           : '';
         return `
           <div class="overdue-item">
             <input type="checkbox" id="ov-${t.id}" data-id="${t.id}">
-            <div>
+            <div style="flex:1">
               <div class="overdue-title">${esc(t.title)}</div>
-              ${dueStr ? `<div class="overdue-meta">Was due: ${dueStr}</div>` : ''}
+              ${dueStr ? `<div class="overdue-meta">Was due ${esc(dueStr)}</div>` : ''}
             </div>
-            <span class="badge badge-${esc(t.priority)}" style="margin-left:auto">${esc(t.priority)}</span>
           </div>
         `;
       }).join('');
     } else {
       sec.style.display = 'none';
     }
-
-    // Today's task rows — start with one empty row
     document.getElementById('today-rows').innerHTML = '';
     addTodayRow();
-
     document.getElementById('checkin-modal').classList.add('open');
     setTimeout(() => {
       const first = document.querySelector('.today-task-row input[type="text"]');
@@ -1287,36 +1654,28 @@
     `;
     document.getElementById('today-rows').appendChild(row);
   }
-
   function removeRow(id) {
     const rows = document.getElementById('today-rows');
     if (rows.children.length <= 1) {
-      // clear instead of remove so there's always one row
       const inp = rows.querySelector('input[type="text"]');
       if (inp) inp.value = '';
       return;
     }
     document.getElementById(id)?.remove();
   }
-
   function rowKeydown(e, id) {
     if (e.key === 'Enter') { e.preventDefault(); addTodayRow(); }
   }
-
   async function submitCheckin() {
-    // Mark checked overdue tasks as done
     const checked = document.querySelectorAll('#overdue-list input[type="checkbox"]:checked');
     for (const cb of checked) {
       await api(`/api/tasks/${cb.dataset.id}/done`, { method: 'POST', body: '{}' });
     }
-
-    // Create today's tasks
     const todayEnd = (() => {
       const d = new Date();
       d.setHours(23, 59, 0, 0);
       return d.toISOString().replace('T', ' ').slice(0, 19);
     })();
-
     const rows = document.querySelectorAll('.today-task-row');
     let added = 0;
     for (const row of rows) {
@@ -1329,36 +1688,23 @@
       });
       added++;
     }
-
     closeModal('checkin-modal');
     loadTasks();
-
-    if (added > 0) {
-      toast(`Check-in done! Added ${added} task${added > 1 ? 's' : ''} for today.`);
-    } else {
-      toast('Check-in done!');
-    }
+    if (added > 0) toast(`Check-in complete — ${added} task${added > 1 ? 's' : ''} added.`);
+    else toast('Check-in complete.');
   }
 
-  // ── Modal helpers ───────────────────────────────────────────────────────────
-  function closeModal(id) {
-    document.getElementById(id).classList.remove('open');
-  }
-
-  document.getElementById('task-modal').addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeModal('task-modal');
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+  document.getElementById('task-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('task-modal'); });
+  document.getElementById('checkin-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('checkin-modal'); });
+  document.getElementById('email-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('email-modal'); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') ['task-modal','checkin-modal','email-modal'].forEach(closeModal);
   });
-  document.getElementById('checkin-modal').addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeModal('checkin-modal');
-  });
+  document.getElementById('f-title').addEventListener('keydown', e => { if (e.key === 'Enter') saveTask(); });
 
-  document.getElementById('f-title').addEventListener('keydown', e => {
-    if (e.key === 'Enter') saveTask();
-  });
-
-  // ── Email modal ─────────────────────────────────────────────────────────────
+  // Email modal
   let _emailConfigured = false;
-
   async function openEmailModal() {
     const cfg = await api('/api/email/config');
     _emailConfigured = cfg.configured;
@@ -1373,21 +1719,17 @@
     document.getElementById('em-result').className = 'sync-result hidden';
     document.getElementById('email-modal').classList.add('open');
   }
-
   async function saveEmailConfig() {
     const email_addr = document.getElementById('em-email').value.trim();
     const app_password = document.getElementById('em-password').value.trim();
     const imap_host = document.getElementById('em-host').value.trim();
-
     if (!email_addr || (!app_password && !_emailConfigured)) {
-      alert('Email and App Password are required.');
+      alert('Email and app password are required.');
       return;
     }
-
     const btn = document.getElementById('em-save-btn');
     btn.textContent = 'Testing…';
     btn.disabled = true;
-
     const resultEl = document.getElementById('em-result');
     try {
       const res = await api('/api/email/config', {
@@ -1396,26 +1738,24 @@
       });
       if (res.ok) {
         resultEl.className = 'sync-result success';
-        resultEl.textContent = `✅ Connected! ${res.unread} unread email${res.unread !== 1 ? 's' : ''} in inbox. Sync runs every 5 minutes.`;
+        resultEl.textContent = `Connected. ${res.unread} unread email${res.unread !== 1 ? 's' : ''} in inbox. Sync every 5 min.`;
         updateEmailPill();
-        // Kick off first sync immediately
         api('/api/email/sync', { method: 'POST', body: '{}' }).then(() => {
           loadTasks();
           updateEmailPill();
         });
       } else {
         resultEl.className = 'sync-result error';
-        resultEl.textContent = `❌ ${res.error}`;
+        resultEl.textContent = res.error;
       }
     } catch (e) {
       resultEl.className = 'sync-result error';
-      resultEl.textContent = `❌ ${e.message}`;
+      resultEl.textContent = e.message;
     } finally {
-      btn.textContent = 'Connect & Test';
+      btn.textContent = 'Connect & test';
       btn.disabled = false;
     }
   }
-
   async function rescanInbox() {
     const btn = document.getElementById('em-rescan-btn');
     const resultEl = document.getElementById('em-result');
@@ -1423,55 +1763,50 @@
     btn.disabled = true;
     try {
       const res = await api('/api/email/sync', { method: 'POST', body: JSON.stringify({ rescan: true }) });
-      resultEl.className = 'sync-result success';
+      resultEl.className = 'sync-result ' + (res.error ? 'error' : 'success');
       resultEl.textContent = res.error
-        ? `❌ ${res.error}`
-        : `✅ Rescan done — ${res.imported} new task${res.imported !== 1 ? 's' : ''} imported.`;
+        ? res.error
+        : `Rescan complete — ${res.imported} new task${res.imported !== 1 ? 's' : ''} imported.`;
       if (res.imported > 0) loadTasks();
       updateEmailPill();
     } catch (e) {
       resultEl.className = 'sync-result error';
-      resultEl.textContent = `❌ ${e.message}`;
+      resultEl.textContent = e.message;
     } finally {
-      btn.textContent = '🔄 Rescan inbox';
+      btn.textContent = '↻ Rescan';
       btn.disabled = false;
     }
   }
-
   async function updateEmailPill() {
     try {
       const st = await api('/api/email/status');
       const pill = document.getElementById('email-pill');
       if (!st.configured) {
         pill.className = '';
-        pill.textContent = '📧 Email sync';
+        pill.textContent = 'Email sync';
         return;
       }
       if (st.error && st.error !== 'not_configured') {
         pill.className = 'error';
-        pill.textContent = '📧 Sync error';
+        pill.textContent = 'Sync error';
         pill.title = st.error;
         return;
       }
       if (st.at) {
         const ago = Math.round((Date.now() - new Date(st.at)) / 60000);
         pill.className = 'ok';
-        pill.textContent = `📧 Synced ${ago < 2 ? 'just now' : ago + 'm ago'}`;
+        pill.textContent = ago < 2 ? 'Synced just now' : `Synced ${ago}m ago`;
       } else {
         pill.className = 'ok';
-        pill.textContent = '📧 Email connected';
+        pill.textContent = 'Email connected';
       }
     } catch (_) {}
   }
 
-  document.getElementById('email-modal').addEventListener('click', e => {
-    if (e.target === e.currentTarget) closeModal('email-modal');
-  });
-
-  // ── Init ────────────────────────────────────────────────────────────────────
+  // Init
   checkNotifPermission();
   connectStream();
-  setView(_view); // applies persisted view (list/kanban) and triggers initial render
+  setView(_view);
   loadTasks();
   updateEmailPill();
   setInterval(loadTasks, 60000);
