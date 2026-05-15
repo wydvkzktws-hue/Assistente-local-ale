@@ -1,22 +1,43 @@
 import json
 import queue
+import re
 import schedule
 import sys
 import threading
 import time
+import traceback
 from datetime import datetime, timedelta
 
 from flask import Flask, Response, jsonify, render_template, request
+from werkzeug.exceptions import HTTPException
 
 from core.db import (cleanup_stale_tasks, complete_task, create_task, delete_task,
                 get_pending_tasks, get_task, init_db, list_tasks, reopen_task,
                 snooze_task, update_task)
 from integrations.email_sync import load_config, save_config, sync_emails, test_connection
+from integrations.email_reply import build_body, send_reply
 from integrations.notify import send_notification
+from integrations import gcal_sync
 from core.recurrence import calculate_next_due_date
 
 app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.jinja_env.auto_reload = True
 init_db()
+
+
+@app.errorhandler(Exception)
+def _json_error_handler(exc):
+    """Always return JSON for /api/* — never HTML. Prevents the frontend's
+    `res.json()` from choking on a 500 HTML traceback page."""
+    if request.path.startswith("/api/"):
+        if isinstance(exc, HTTPException):
+            return jsonify({"ok": False, "error": exc.description}), exc.code
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
+    if isinstance(exc, HTTPException):
+        return exc
+    raise exc
 
 _clients: list[queue.Queue] = []
 _clients_lock = threading.Lock()
@@ -35,7 +56,7 @@ def _push_to_clients(event: dict) -> None:
 
 
 def _task_to_dict(task: tuple) -> dict:
-    task_id, title, description, due_at, priority, status, recurrence, created_at, updated_at, snoozed_until = task
+    task_id, title, description, due_at, priority, status, recurrence, created_at, updated_at, snoozed_until = task[:10]
     return {
         "id": task_id,
         "title": title,
@@ -51,6 +72,24 @@ def _task_to_dict(task: tuple) -> dict:
 
 
 _last_email_sync: dict = {"imported": 0, "error": None, "at": None}
+_last_gcal_sync: dict = {"created": 0, "updated": 0, "deleted": 0, "error": None, "at": None}
+
+
+def _run_gcal_sync() -> None:
+    global _last_gcal_sync
+    if not gcal_sync.is_connected():
+        return
+    result = gcal_sync.sync_to_calendar()
+    result["at"] = datetime.now().isoformat(timespec="seconds")
+    _last_gcal_sync = result
+    n = result["created"] + result["updated"] + result["deleted"]
+    if n > 0 and not result.get("error"):
+        _push_to_clients({
+            "type": "gcal_sync",
+            "created": result["created"],
+            "updated": result["updated"],
+            "deleted": result["deleted"],
+        })
 
 
 def _run_email_sync() -> None:
@@ -193,6 +232,9 @@ def api_update_task(task_id: int):
 
 @app.route("/api/tasks/<int:task_id>", methods=["DELETE"])
 def api_delete_task(task_id: int):
+    task = get_task(task_id)
+    if task and len(task) > 10 and task[10]:
+        gcal_sync.delete_event(task[10])
     delete_task(task_id)
     return jsonify({"ok": True})
 
@@ -285,6 +327,85 @@ def api_email_sync():
 def api_email_status():
     cfg = load_config()
     return jsonify({**_last_email_sync, "configured": cfg is not None})
+
+
+def _parse_email_meta(desc: str) -> dict:
+    def grab(tag: str):
+        m = re.search(rf"\[{tag}:([^\]\n]+)\]", desc or "")
+        return m.group(1).strip() if m else None
+    return {
+        "msgid":   grab("email-msgid"),
+        "sender":  grab("email-sender-addr"),
+        "subject": grab("email-subject"),
+    }
+
+
+@app.route("/api/email/reply", methods=["POST"])
+def api_email_reply():
+    data = request.get_json(force=True) or {}
+    try:
+        task_id = int(data["task_id"])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({"ok": False, "error": "bad_task_id"}), 400
+
+    choice = (data.get("choice") or "attending").lower()
+    language = (data.get("language") or "en").lower()
+    custom = (data.get("custom") or "").strip() or None
+
+    if choice not in ("attending", "decline", "tentative"):
+        return jsonify({"ok": False, "error": "bad_choice"}), 400
+    if language not in ("en", "pt"):
+        return jsonify({"ok": False, "error": "bad_language"}), 400
+
+    task = get_task(task_id)
+    if not task:
+        return jsonify({"ok": False, "error": "task_not_found"}), 404
+
+    description = task[2]
+    meta = _parse_email_meta(description)
+    if not meta["sender"]:
+        return jsonify({"ok": False, "error": "no_sender_address"}), 400
+
+    body = build_body(language, choice, custom)
+    try:
+        result = send_reply(
+            to_addr=meta["sender"],
+            subject=meta["subject"] or "Meeting",
+            in_reply_to_msgid=meta["msgid"],
+            body=body,
+        )
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
+    if not result.get("ok"):
+        return jsonify(result), 500
+    return jsonify({"ok": True, "to": meta["sender"]})
+
+
+@app.route("/api/gcal/status", methods=["GET"])
+def api_gcal_status():
+    return jsonify({**gcal_sync.status(), "last": _last_gcal_sync})
+
+
+@app.route("/api/gcal/connect", methods=["POST"])
+def api_gcal_connect():
+    """Run OAuth flow. Blocks until user consents in the spawned browser."""
+    result = gcal_sync.begin_auth()
+    if not result.get("ok"):
+        return jsonify(result), 400
+    return jsonify({"ok": True, "last": _last_gcal_sync})
+
+
+@app.route("/api/gcal/disconnect", methods=["POST"])
+def api_gcal_disconnect():
+    gcal_sync.disconnect()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/gcal/sync", methods=["POST"])
+def api_gcal_sync():
+    _run_gcal_sync()
+    return jsonify(_last_gcal_sync)
 
 
 if __name__ == "__main__":

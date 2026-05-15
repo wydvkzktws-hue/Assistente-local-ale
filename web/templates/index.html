@@ -50,7 +50,48 @@
 
       --ease:       cubic-bezier(.2, .8, .2, 1);
       --max:        min(1200px, 96vw);
+
+      --topbar-bg:  rgba(250,250,249,0.85);
     }
+
+    :root[data-theme="dark"] {
+      --bg:           #0E1116;
+      --surface:      #181B22;
+      --surface-2:    #20242C;
+      --surface-3:    #282D36;
+      --border:       #2C313B;
+      --border-strong:#3A4150;
+      --text:         #F4F4F3;
+      --text-2:       #BFC3CB;
+      --text-3:       #8A8F98;
+      --text-4:       #5C616B;
+
+      --accent:       #2DD4BF;
+      --accent-2:     #5EEAD4;
+      --accent-soft:  #0F3C36;
+
+      --danger:       #F87171;
+      --danger-soft:  #3B1B1B;
+      --warn:         #FBBF24;
+      --warn-soft:    #3A2A0B;
+      --success:      #34D399;
+      --success-soft: #0F3325;
+      --info:         #60A5FA;
+      --info-soft:    #14233E;
+      --violet:       #A78BFA;
+      --violet-soft:  #281E45;
+
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.35), 0 1px 1px rgba(0,0,0,0.25);
+      --shadow-md: 0 4px 16px -6px rgba(0,0,0,0.55), 0 2px 6px -2px rgba(0,0,0,0.40);
+      --shadow-lg: 0 24px 56px -16px rgba(0,0,0,0.70), 0 8px 16px -8px rgba(0,0,0,0.50);
+
+      --topbar-bg:  rgba(14,17,22,0.85);
+    }
+
+    :root[data-theme="dark"] #email-pill.ok    { color: var(--accent-2); border-color: #134E48; background: #0B2925; }
+    :root[data-theme="dark"] #email-pill.error { color: var(--danger);   border-color: #5A1F1F; background: #2A1414; }
+    :root[data-theme="dark"] .btn-primary        { background: var(--accent); color: #0B1014; border-color: var(--accent); }
+    :root[data-theme="dark"] .btn-primary:hover  { background: var(--accent-2); border-color: var(--accent-2); }
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -74,7 +115,7 @@
     /* ── Topbar ─────────────────────────────────────────────────── */
     header.topbar {
       position: sticky; top: 0; z-index: 50;
-      background: rgba(250,250,249,0.85);
+      background: var(--topbar-bg);
       backdrop-filter: saturate(180%) blur(10px);
       -webkit-backdrop-filter: saturate(180%) blur(10px);
       border-bottom: 1px solid var(--border);
@@ -813,6 +854,7 @@
     </div>
     <div class="topbar-right">
       <span class="live-pill"><span class="live-dot"></span><span id="stream-status">Connecting…</span></span>
+      <button class="btn btn-ghost" id="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
     </div>
   </div>
 </header>
@@ -828,7 +870,10 @@
     <button class="btn btn-primary" onclick="openAddModal()">＋ New task</button>
     <button class="btn" onclick="openCheckinManual()">Daily check-in</button>
     <span id="email-pill" onclick="openEmailModal()" title="Email sync settings">Email sync</span>
+    <span id="gcal-pill" onclick="handleGcalClick()" title="Google Calendar sync"
+          style="cursor:pointer;padding:.4rem .7rem;border:1px solid var(--border);border-radius:999px;font-size:.85rem;">📅 Calendar sync: off</span>
     <div class="toolbar-grow"></div>
+    <button class="btn btn-ghost" id="btn-clear-done" onclick="clearDoneTasks()" hidden title="Delete all completed tasks">🗑 Clear done <span class="tab-count" id="cnt-done-clear">0</span></button>
     <select id="filter-status" onchange="loadTasks()" aria-label="Status filter">
       <option value="">All status</option>
       <option value="pending">Pending</option>
@@ -970,6 +1015,40 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="meeting-reply-modal">
+  <div class="modal">
+    <h2>Reply to meeting</h2>
+    <div id="mr-target" style="margin-bottom:12px; opacity:.8; font-size:0.9em;"></div>
+
+    <div class="form-group">
+      <label>Language</label>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-ghost mr-lang-btn" data-lang="en" onclick="setReplyLanguage('en')">English</button>
+        <button type="button" class="btn btn-ghost mr-lang-btn" data-lang="pt" onclick="setReplyLanguage('pt')">Português</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Response</label>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost mr-choice-btn" data-choice="attending" onclick="setReplyChoice('attending')">✅ <span data-i18n="attending"></span></button>
+        <button type="button" class="btn btn-ghost mr-choice-btn" data-choice="decline" onclick="setReplyChoice('decline')">❌ <span data-i18n="decline"></span></button>
+        <button type="button" class="btn btn-ghost mr-choice-btn" data-choice="tentative" onclick="setReplyChoice('tentative')">❓ <span data-i18n="tentative"></span></button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Preview / customise</label>
+      <textarea id="mr-body" rows="6"></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-quiet" onclick="closeModal('meeting-reply-modal')">Cancel</button>
+      <button class="btn btn-accent" id="mr-send-btn" onclick="sendMeetingReply()">Send</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -977,6 +1056,24 @@
   let _allTasks = [];
   let _activeTab = 'all';
   let _view = localStorage.getItem('view') || 'list';
+
+  (function initTheme() {
+    const saved = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = saved || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  })();
+
+  function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    const btn = document.getElementById('theme-toggle');
+    if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+  }
 
   (function setMastDate() {
     const el = document.getElementById('mast-date');
@@ -1024,7 +1121,10 @@
     if (!description) return description;
     return description
       .replace(/^\[email-category:\w+\]\n?/, '')
-      .replace(/^\[gmail-link:[^\]]+\]\n?/, '');
+      .replace(/^\[gmail-link:[^\]]+\]\n?/, '')
+      .replace(/^\[email-msgid:[^\]]+\]\n?/m, '')
+      .replace(/^\[email-sender-addr:[^\]]+\]\n?/m, '')
+      .replace(/^\[email-subject:[^\]]+\]\n?/m, '');
   }
 
   function getGmailLink(description) {
@@ -1116,6 +1216,32 @@
       const el = document.getElementById('cnt-' + key);
       if (el) el.textContent = n;
     }
+
+    // Toolbar "Clear done" — show only when there are done tasks
+    const doneCount = _allTasks.filter(t => t.status === 'done').length;
+    const btn = document.getElementById('btn-clear-done');
+    const cnt = document.getElementById('cnt-done-clear');
+    if (btn) btn.hidden = doneCount === 0;
+    if (cnt) cnt.textContent = doneCount;
+  }
+
+  async function clearDoneTasks() {
+    const done = _allTasks.filter(t => t.status === 'done');
+    if (!done.length) return;
+    if (!confirm(`Delete ${done.length} completed task${done.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+
+    const btn = document.getElementById('btn-clear-done');
+    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+    try {
+      await Promise.all(done.map(t => api(`/api/tasks/${t.id}`, { method: 'DELETE' })));
+      toast(`Deleted ${done.length} completed task${done.length > 1 ? 's' : ''}.`);
+      loadTasks();
+    } catch (e) {
+      toast('Some deletions failed — refresh to retry.');
+      loadTasks();
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   // Toast
@@ -1177,6 +1303,8 @@
           }
           loadTasks();
           updateEmailPill();
+        } else if (data.type === 'gcal_sync') {
+          refreshGcalPill();
         }
       } catch (_) {}
     };
@@ -1289,6 +1417,7 @@
       </div>
       <div class="task-actions">
         ${gmailUrl ? `<a class="ico-btn" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">↗</a>` : ''}
+        ${cat === 'meeting' ? `<button class="ico-btn" onclick="openMeetingReplyModal(${t.id})" title="Reply attendance">✉</button>` : ''}
         ${!isDone ? `
           <button class="ico-btn success" onclick="doneTask(${t.id})" title="Mark done">✓</button>
           <button class="ico-btn warn"    onclick="snoozeTask(${t.id})" title="Snooze">⏾</button>
@@ -1450,6 +1579,7 @@
         <div class="kanban-card-meta">${meta.join('')}</div>
         <div class="kanban-card-actions">
           ${gmailUrl ? `<a class="ico-btn" href="${gmailUrl}" target="_blank" rel="noopener" title="Open in Gmail">↗</a>` : ''}
+          ${cat === 'meeting' ? `<button class="ico-btn" onclick="openMeetingReplyModal(${t.id})" title="Reply attendance">✉</button>` : ''}
           ${!isDone ? `
             <button class="ico-btn success" onclick="doneTask(${t.id})" title="Done">✓</button>
             <button class="ico-btn warn"    onclick="snoozeTask(${t.id})" title="Snooze">⏾</button>
@@ -1698,10 +1828,53 @@
   document.getElementById('task-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('task-modal'); });
   document.getElementById('checkin-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('checkin-modal'); });
   document.getElementById('email-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('email-modal'); });
+  document.getElementById('meeting-reply-modal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal('meeting-reply-modal'); });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') ['task-modal','checkin-modal','email-modal'].forEach(closeModal);
+    if (e.key === 'Escape') ['task-modal','checkin-modal','email-modal','meeting-reply-modal'].forEach(closeModal);
   });
   document.getElementById('f-title').addEventListener('keydown', e => { if (e.key === 'Enter') saveTask(); });
+
+  // Google Calendar sync
+  async function refreshGcalPill() {
+    try {
+      const s = await api('/api/gcal/status');
+      const pill = document.getElementById('gcal-pill');
+      if (!s.configured) {
+        pill.textContent = '📅 Calendar sync: setup';
+        pill.title = 'Place OAuth credentials.json at ' + s.credentials_path;
+      } else if (!s.connected) {
+        pill.textContent = '📅 Calendar sync: connect';
+        pill.title = 'Click to authorize Google Calendar';
+      } else {
+        const last = s.last || {};
+        const sum = (last.created || 0) + (last.updated || 0) + (last.deleted || 0);
+        pill.textContent = '📅 Calendar sync: on' + (sum ? ` (${sum})` : '');
+        pill.title = last.error ? ('Last error: ' + last.error)
+                                : ('Last sync: ' + (last.at || 'never') + ' — click to sync now');
+      }
+    } catch (_) {}
+  }
+  async function handleGcalClick() {
+    const s = await api('/api/gcal/status');
+    if (!s.configured) {
+      alert('Missing Google OAuth credentials.\n\nCreate a Desktop OAuth client in Google Cloud Console and save the JSON to:\n' + s.credentials_path);
+      return;
+    }
+    if (!s.connected) {
+      toast('Opening browser for Google consent…');
+      const r = await api('/api/gcal/connect', { method: 'POST' });
+      if (r.ok) toast('Google Calendar connected.');
+      else alert('Connect failed: ' + (r.error || 'unknown'));
+    } else {
+      toast('Syncing to Google Calendar…');
+      const r = await api('/api/gcal/sync', { method: 'POST' });
+      if (r.error) alert('Sync error: ' + r.error);
+      else toast(`Calendar sync: +${r.created || 0} new, ${r.updated || 0} updated, ${r.deleted || 0} removed`);
+    }
+    refreshGcalPill();
+  }
+  refreshGcalPill();
+  setInterval(refreshGcalPill, 60000);
 
   // Email modal
   let _emailConfigured = false;
@@ -1801,6 +1974,102 @@
         pill.textContent = 'Email connected';
       }
     } catch (_) {}
+  }
+
+  // Meeting reply
+  const REPLY_TEMPLATES = {
+    en: {
+      attending: "Hi,\n\nI'll be attending the meeting.\n\nThanks,",
+      decline:   "Hi,\n\nUnfortunately I won't be able to attend the meeting.\n\nThanks,",
+      tentative: "Hi,\n\nI'm tentative for the meeting — I'll confirm as soon as possible.\n\nThanks,",
+      labels:    { attending: 'Attending', decline: 'Decline', tentative: 'Tentative' },
+    },
+    pt: {
+      attending: "Olá,\n\nConfirmo minha presença na reunião.\n\nObrigado,",
+      decline:   "Olá,\n\nInfelizmente não poderei participar da reunião.\n\nObrigado,",
+      tentative: "Olá,\n\nAinda não tenho certeza se poderei participar — confirmarei o mais breve possível.\n\nObrigado,",
+      labels:    { attending: 'Confirmar', decline: 'Recusar', tentative: 'Talvez' },
+    },
+  };
+  let _replyState = { taskId: null, language: 'en', choice: 'attending', userEdited: false };
+
+  function openMeetingReplyModal(taskId) {
+    const t = _allTasks.find(x => x.id === taskId);
+    if (!t) { toast('Task not found.'); return; }
+    const desc = t.description || '';
+    const senderAddr = (desc.match(/\[email-sender-addr:([^\]\n]+)\]/) || [])[1];
+    if (!senderAddr) {
+      toast('No sender address available — re-sync inbox to capture it.');
+      return;
+    }
+    _replyState = { taskId, language: 'en', choice: 'attending', userEdited: false };
+    document.getElementById('mr-target').textContent = `To: ${senderAddr.trim()}  ·  ${t.title}`;
+    document.getElementById('mr-body').value = '';
+    document.getElementById('mr-body').addEventListener('input', _markReplyEdited, { once: true });
+    refreshReplyUI();
+    document.getElementById('meeting-reply-modal').classList.add('open');
+  }
+
+  function _markReplyEdited() { _replyState.userEdited = true; }
+
+  function setReplyLanguage(lang) {
+    _replyState.language = lang;
+    refreshReplyUI();
+  }
+
+  function setReplyChoice(choice) {
+    _replyState.choice = choice;
+    _replyState.userEdited = false;
+    refreshReplyUI({ overwriteBody: true });
+    document.getElementById('mr-body').addEventListener('input', _markReplyEdited, { once: true });
+  }
+
+  function refreshReplyUI(opts = {}) {
+    const tpl = REPLY_TEMPLATES[_replyState.language] || REPLY_TEMPLATES.en;
+    document.querySelectorAll('.mr-lang-btn').forEach(b => {
+      b.classList.toggle('btn-accent', b.dataset.lang === _replyState.language);
+      b.classList.toggle('btn-ghost', b.dataset.lang !== _replyState.language);
+    });
+    document.querySelectorAll('.mr-choice-btn').forEach(b => {
+      b.classList.toggle('btn-accent', b.dataset.choice === _replyState.choice);
+      b.classList.toggle('btn-ghost', b.dataset.choice !== _replyState.choice);
+      const labelSpan = b.querySelector('[data-i18n]');
+      if (labelSpan) labelSpan.textContent = tpl.labels[labelSpan.dataset.i18n] || '';
+    });
+    if (opts.overwriteBody || !_replyState.userEdited) {
+      document.getElementById('mr-body').value = tpl[_replyState.choice];
+    }
+  }
+
+  async function sendMeetingReply() {
+    const btn = document.getElementById('mr-send-btn');
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      const body = document.getElementById('mr-body').value.trim();
+      const tpl = REPLY_TEMPLATES[_replyState.language][_replyState.choice];
+      const payload = {
+        task_id: _replyState.taskId,
+        language: _replyState.language,
+        choice: _replyState.choice,
+        custom: (body && body !== tpl) ? body : null,
+      };
+      const res = await fetch('/api/email/reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        toast('Reply failed: ' + (json.error || res.statusText));
+        return;
+      }
+      toast('Reply sent to ' + (json.to || 'meeting organiser') + '.');
+      closeModal('meeting-reply-modal');
+    } catch (e) {
+      toast('Reply failed: ' + e.message);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Send';
+    }
   }
 
   // Init

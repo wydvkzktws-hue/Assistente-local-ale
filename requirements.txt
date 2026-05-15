@@ -1,3 +1,6 @@
 flask
 schedule
 plyer; sys_platform == "win32"
+google-auth
+google-auth-oauthlib
+google-api-python-client

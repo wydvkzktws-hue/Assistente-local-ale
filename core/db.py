@@ -26,6 +26,37 @@ def init_db():
                 snoozed_until TEXT
             )
         ''')
+        # Migration: add gcal_event_id if missing
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(tasks)").fetchall()]
+        if "gcal_event_id" not in cols:
+            conn.execute("ALTER TABLE tasks ADD COLUMN gcal_event_id TEXT")
+        conn.commit()
+
+
+def get_tasks_for_gcal_sync() -> List[Tuple]:
+    """Pending tasks with a due date — candidates for Google Calendar push."""
+    with get_db_connection() as conn:
+        cursor = conn.execute('''
+            SELECT id, title, description, due_at, priority, recurrence, gcal_event_id
+            FROM tasks
+            WHERE status = 'pending' AND due_at IS NOT NULL
+        ''')
+        return cursor.fetchall()
+
+
+def get_done_tasks_with_gcal() -> List[Tuple]:
+    """Done tasks that still have a linked GCal event — for cleanup."""
+    with get_db_connection() as conn:
+        cursor = conn.execute('''
+            SELECT id, gcal_event_id FROM tasks
+            WHERE status = 'done' AND gcal_event_id IS NOT NULL
+        ''')
+        return cursor.fetchall()
+
+
+def set_gcal_event_id(task_id: int, event_id: Optional[str]) -> None:
+    with get_db_connection() as conn:
+        conn.execute('UPDATE tasks SET gcal_event_id = ? WHERE id = ?', (event_id, task_id))
         conn.commit()
 
 @contextmanager

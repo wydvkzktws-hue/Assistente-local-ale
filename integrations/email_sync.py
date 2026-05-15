@@ -6,6 +6,7 @@ import re
 import urllib.parse
 from datetime import date, datetime
 from email.header import decode_header
+from email.utils import parseaddr
 from typing import Optional
 
 from core.db import create_task
@@ -71,6 +72,14 @@ CATEGORIES = {
             "google meet", "meet.google.com", "join with google meet",
             "microsoft teams", "teams.microsoft.com", "join microsoft teams",
             "join a teams meeting", "teams meeting",
+            "invitation:", "updated invitation:", "convite:", "convite atualizado:",
+            "invited you to", "convidou você", "convidou voce",
+            "accepted:", "declined:", "tentatively accepted:",
+            "calendar invitation", "convite de calendário", "convite de calendario",
+        ],
+        "sender_domains": [
+            "calendar-notification@google.com",
+            "calendar-server.bounces.google.com",
         ],
         "emoji": "📅",
         "priority": "medium",
@@ -83,8 +92,41 @@ def _is_noreply(sender: str) -> bool:
     return any(p in s for p in NO_REPLY_PATTERNS)
 
 
-def _categorize(subject: str, sender: str) -> Optional[tuple]:
-    """Return (category_key, emoji, priority) or None to discard."""
+# Body-only meeting signals: Meet/Teams/Zoom URLs, "convite" anywhere,
+# and date+time patterns (DD/MM[/YYYY] HH:MM  or  YYYY-MM-DD HH:MM).
+MEETING_URL_RX = re.compile(
+    r"(meet\.google\.com/[a-z0-9\-]+|teams\.microsoft\.com/l/meetup-join|"
+    r"teams\.live\.com/meet/|zoom\.us/j/\d+)",
+    re.IGNORECASE,
+)
+MEETING_CONVITE_RX = re.compile(r"\bconvite\b", re.IGNORECASE)
+MEETING_DATETIME_RX = re.compile(
+    r"\b("
+    r"[0-3]?\d[/.\-][01]?\d(?:[/.\-]20\d{2})?\s+[0-2]?\d:[0-5]\d"  # 10/05 14:30 or 10/05/2026 14:30
+    r"|20\d{2}-[01]?\d-[0-3]?\d\s+[0-2]?\d:[0-5]\d"               # 2026-05-10 14:30
+    r")\b"
+)
+
+
+def _looks_like_meeting_body(text: str) -> bool:
+    if not text:
+        return False
+    if MEETING_URL_RX.search(text):
+        return True
+    if MEETING_CONVITE_RX.search(text):
+        return True
+    if MEETING_DATETIME_RX.search(text):
+        return True
+    return False
+
+
+def _categorize(subject: str, sender: str, body: str = "") -> Optional[tuple]:
+    """Return (category_key, emoji, priority) or None to discard.
+
+    `body` is an optional snippet used as a fallback for the meeting category
+    only — picks up Google Meet links, "convite" mentions, and date+time
+    patterns that don't appear in the subject line.
+    """
     sender_l = sender.lower()
     subject_l = subject.lower()
     for cat_key, info in CATEGORIES.items():
@@ -95,6 +137,10 @@ def _categorize(subject: str, sender: str) -> Optional[tuple]:
         text = subject_l + " " + sender_l
         if any(kw in text for kw in info.get("keywords", [])):
             return cat_key, info["emoji"], info["priority"]
+    # Body-fallback for meetings only.
+    if body and _looks_like_meeting_body(body):
+        info = CATEGORIES["meeting"]
+        return "meeting", info["emoji"], info["priority"]
     return None
 
 
@@ -245,11 +291,28 @@ def _extract_body(msg: email.message.Message, max_chars: int = 400) -> str:
 
 # ── Main sync ─────────────────────────────────────────────────────────────────
 
+def _parse_fetch_response(data) -> list:
+    """imaplib fetch with multiple IDs returns a flat list interleaving tuples
+    and b')'. Pull out the (meta, payload) tuples in order."""
+    out = []
+    for item in data:
+        if isinstance(item, tuple) and len(item) >= 2:
+            out.append(item[1])
+    return out
+
+
 def sync_emails(rescan: bool = False) -> dict:
     """
     Fetches emails and creates tasks. rescan=True searches ALL mail (not just
     UNSEEN) so already-read emails can be imported for the first time.
     Returns {'imported': int, 'error': str|None}.
+
+    Speed strategy:
+      1. Batch-fetch headers only (Message-ID/Subject/From) for all candidates
+         in one IMAP round-trip.
+      2. Filter out already-seen IDs without ever pulling their body.
+      3. Categorize by header; drop noreply only if header didn't categorize.
+      4. Fetch full body only for survivors (one IMAP call per survivor).
     """
     cfg = load_config()
     if not cfg:
@@ -271,35 +334,75 @@ def sync_emails(rescan: bool = False) -> dict:
 
         # Process newest-first, cap at 200 for rescan, 50 for normal
         cap = 200 if rescan else 50
-        for eid in reversed(ids[-cap:]):
-            _, msg_data = mail.fetch(eid, "(RFC822)")
-            raw_msg = msg_data[0][1]
-            msg = email.message_from_bytes(raw_msg)
+        batch_ids = list(reversed(ids[-cap:]))
+        if not batch_ids:
+            mail.logout()
+            return {"imported": 0, "urgent": [], "error": None}
 
-            msg_id = (msg.get("Message-ID") or "").strip()
+        # ── Phase 1: one IMAP fetch for headers + first 16KB body ─────────
+        # Partial-message fetch gives us everything needed to classify
+        # (including Meet links and "convite" mentions buried in the body)
+        # without a second round-trip per message.
+        id_set = b",".join(batch_ids)
+        _, hdr_data = mail.fetch(id_set, "(BODY.PEEK[]<0.16384>)")
+
+        candidates = []  # [(eid, msg_id, subject, sender, snippet_msg)]
+        idx = 0
+        for item in hdr_data:
+            if not (isinstance(item, tuple) and len(item) >= 2):
+                continue
+            meta = item[0]
+            payload = item[1]
+            try:
+                eid = meta.split(b" ", 1)[0]
+            except Exception:
+                eid = batch_ids[idx] if idx < len(batch_ids) else b""
+            idx += 1
+            try:
+                snippet_msg = email.message_from_bytes(payload)
+            except Exception:
+                continue
+            msg_id = (snippet_msg.get("Message-ID") or "").strip()
             if msg_id and msg_id in seen:
                 continue
+            subject = _decode_header_str(snippet_msg.get("Subject", "(no subject)"))
+            sender = _decode_header_str(snippet_msg.get("From", ""))
+            candidates.append((eid, msg_id, subject, sender, snippet_msg))
 
-            subject = _decode_header_str(msg.get("Subject", "(no subject)"))
-            sender  = _decode_header_str(msg.get("From", ""))
+        # ── Phase 2: categorize using snippet; refetch full only if needed ─
+        for eid, msg_id, subject, sender, snippet_msg in candidates:
+            content_type = (snippet_msg.get("Content-Type") or "").lower()
+            snippet_body = _extract_body(snippet_msg, max_chars=8000)
 
-            if _is_noreply(sender):
-                if msg_id:
-                    seen.add(msg_id)
-                continue
+            cat = _categorize(subject, sender, body=snippet_body)
 
-            cat = _categorize(subject, sender)
+            # text/calendar parts → meeting, even if nothing else matched
+            if cat is None and "text/calendar" in content_type:
+                cat = ("meeting", CATEGORIES["meeting"]["emoji"], "medium")
+
+            # Drop noreply only when nothing categorized it. Legitimate
+            # senders like calendar-notification@google.com must survive.
             if cat is None:
                 if msg_id:
                     seen.add(msg_id)
-                continue  # discard uncategorised email
+                continue  # uncategorised → discard
 
             cat_key, cat_emoji, priority = cat
 
-            # Scan a larger body slice when we need to look for due dates
-            # or urgent markers anywhere in the message.
-            scan_chars = 4000 if cat_key == "payment" else 1000
-            body_full = _extract_body(msg, max_chars=scan_chars)
+            # For payment we may need more body to find the due date; refetch
+            # full message only when the snippet didn't already contain one.
+            if cat_key == "payment":
+                body_full = snippet_body
+                if not _parse_due_date(subject + "\n" + body_full):
+                    _, msg_data = mail.fetch(eid, "(RFC822)")
+                    try:
+                        raw_msg = msg_data[0][1]
+                        full_msg = email.message_from_bytes(raw_msg)
+                        body_full = _extract_body(full_msg, max_chars=4000)
+                    except Exception:
+                        pass
+            else:
+                body_full = snippet_body[:1000]
             body = body_full[:400]
 
             is_urgent_msg = _is_urgent(subject + "\n" + body_full)
@@ -315,6 +418,13 @@ def sync_emails(rescan: bool = False) -> dict:
             if msg_id:
                 safe_id = urllib.parse.quote(msg_id, safe='')
                 desc_lines.append(f"[gmail-link:https://mail.google.com/mail/u/0/#search/rfc822msgid:{safe_id}]")
+            if cat_key == "meeting":
+                _, sender_addr = parseaddr(sender)
+                if msg_id:
+                    desc_lines.append(f"[email-msgid:{msg_id}]")
+                if sender_addr:
+                    desc_lines.append(f"[email-sender-addr:{sender_addr}]")
+                desc_lines.append(f"[email-subject:{subject}]")
             desc_lines.append(f"From: {sender}")
             if body:
                 desc_lines.append("")
